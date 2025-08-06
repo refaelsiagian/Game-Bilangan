@@ -1,0 +1,142 @@
+/* Mode button active */
+.mode-btn.active {
+    color: #fff !important;
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+
+#target-number {
+    display: flex;
+    flex-wrap: nowrap; 
+    white-space: nowrap;
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(1rem, 5vw, 3rem); /* Dinamis: min 1rem, max 3rem */
+    color: #0d6efd;
+    background: #000;
+    padding: 10px 15px;
+    border-radius: 8px;
+    gap: 0.2em; /* Lebih kecil jaraknya */
+    width: 100%; 
+    justify-content: center; /* Tengah */
+}
+
+.digital-slots {
+    display: inline-flex;           /* bukan flex full width */
+    white-space: nowrap;           /* cegah wrap */
+    overflow-x: auto;              /* kalau nggak muat, scroll horizontal */
+    font-family: 'Orbitron', monospace;
+    font-size: 2.5rem;
+    background: #000;
+    color: #0d6efd;
+    padding: 15px;
+    border-radius: 10px;
+    gap: 5px;
+    max-width: 100%;              /* agar tidak melebar lebih dari layar */
+}
+
+.digit {
+    display: inline-block;
+    width: 1.2em;  /* lebih kecil */
+    text-align: center;
+    background: #111;
+    border-radius: 4px;
+    box-shadow: inset 0 0 3px #000;
+    cursor: pointer; /* bisa diklik */
+}
+
+.sep {
+    width: 0.4em;
+    text-align: center;
+    color: #444;
+}
+
+/* Responsif: kecilkan font di layar sempit */
+@media (max-width: 600px) {
+    .digital-slots {
+        font-size: 1.5rem;
+        gap: 3px;
+        padding: 8px;
+    }
+}
+
+/* MODE PILIH */
+
+.digit.filled {
+    background: #0d6efd;
+    color: #fff;
+}
+
+.digit:hover {
+    background: #222;
+}
+
+#current-digit {
+    font-size: clamp(2rem, 8vw, 4rem);
+    padding: 10px;
+    background: #fff;
+    border-radius: 10px;
+    display: inline-block;
+    min-width: 60px;
+}
+
+.digit.fixed {
+    background: #222;  /* lebih gelap */
+    color: #0d6efd;    /* tetap biru */
+    pointer-events: none; /* tidak bisa diklik */
+}
+
+.digit.missed {
+    background: #000;    /* Hitam */
+    color: #aaa;         /* Abu-abu supaya jelas tapi beda dari filled */
+}
+
+
+/* MODE ISI */
+.digit.highlight {
+    border: 2px solid #ffc107; /* Sorotan slot aktif */
+}
+
+.number-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.number-buttons button {
+    width: 60px;
+    height: 60px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-radius: 8px;
+}
+
+/* MODE CARI */
+
+.digit.disabled {
+    pointer-events: none; /* Hilangkan interaksi */
+    opacity: 0.8;         /* Sedikit transparan */
+}
+
+.digit.selected {
+    background: #ffc107;   /* Kuning */
+    color: #000;
+    border: 2px solid #ffca2c;
+}
+
+.digit.wrong-actual {
+    background: #dc3545;    /* Merah */
+    color: #fff;
+    border: 2px solid #a71d2a;
+}
+
+/* MODE COCOK */
+
+.option-btn {
+    width: 100%;
+    padding: 10px;
+    font-size: 1.2rem;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}

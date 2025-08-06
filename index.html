@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Bilangan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="game.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+    <!-- Header -->
+    <div class="text-center mb-4">
+        <h1 class="mb-3">Game Bilangan</h1>
+        <div class="d-flex justify-content-center gap-4 mb-3">
+            <h5>Skor: <span id="score">0</span></h5>
+            <h5>Waktu: <span id="timer">60</span> detik</h5>
+        </div>
+    </div>
+
+    <!-- Pilihan Mode -->
+    <div class="text-center mb-4">
+        <h5>Pilih Mode:</h5>
+        <div class="btn-group flex-wrap" id="mode-selector">
+            <button class="btn btn-outline-primary mode-btn" data-mode="tulis">Tulis</button>
+            <button class="btn btn-outline-primary mode-btn" data-mode="pilih">Pilih</button>
+            <button class="btn btn-outline-primary mode-btn" data-mode="isi">Isi</button>
+            <button class="btn btn-outline-primary mode-btn" data-mode="cari">Cari</button>
+            <button class="btn btn-outline-primary mode-btn" data-mode="cocok">Cocok</button>
+        </div>
+    </div>
+
+    <div class="text-center text-secondary" id="game-instructions">
+        <p>Pilih mode di atas untuk memulai game.</p>
+    </div>
+
+    <!-- Container Dinamis untuk UI Mode -->
+    <div id="game-container" class="mb-4"></div>
+
+    <!-- Feedback global (opsional) -->
+    <div id="global-feedback" class="text-center fw-bold fs-5"></div>
+</div>
+
+<script src="js/main.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
