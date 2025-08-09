@@ -1,4 +1,4 @@
-import { terbilang, generateRandomNumberByDifficulty } from '../utils.js';
+import { terbilang, generateRandomNumberByDifficulty, findFixedIndices } from '../utils.js';
 
 export function init({ container, scoreElement, timerElement, onGameStateChange }) {
     let targetNumber = "";
@@ -125,17 +125,8 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
 
     function renderSlots(digits, difficulty) {
         targetNumberElement.innerHTML = "";
-        let fixedIndices = [];
 
-        if (difficulty === "mudah") {
-            for (let i = 0; i <= digits.length - 3; i++) {
-                if (digits[i] === '0' && digits[i+1] === '0' && digits[i+2] === '0') {
-                    fixedIndices.push(i, i+1, i+2);
-                    i += 2;
-                    if (fixedIndices.length >= 6) break;
-                }
-            }
-        }
+        const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
 
         for (let i = 0; i < digits.length; i++) {
             const span = document.createElement("span");

@@ -8,7 +8,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     let timerInterval = null;
     let gameActive = false;
 
-    // Render UI
+    // === RENDER UI ===
     container.innerHTML = `
         <div class="row mb-3">
             <div class="col text-center">
@@ -93,7 +93,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         </div>
     `;
 
-    // Ambil elemen baru setelah render
+    // === DOM REFERENCES ===
     const hasilKata = container.querySelector('#hasil-kata');
     const wordButtons = container.querySelectorAll('.word-btn');
     const startBtn = container.querySelector('#start-btn');
@@ -101,32 +101,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const resetBtn = container.querySelector('#reset-btn');
     const submitBtn = container.querySelector('#submit-btn');
     const feedback = container.querySelector('#feedback');
+    const targetNumberElement = container.querySelector("#target-number");
     const difficultySelect = container.querySelector('#difficulty');
 
-    // Bind event
+    // === EVENT LISTENERS ===
     wordButtons.forEach(btn => btn.addEventListener('click', () => {
-        if (hasilKata.classList.contains('text-secondary')) {
-            hasilKata.classList.remove('text-secondary');
-            kataArray = [];
-        }
-        kataArray.push(btn.textContent);
-        hasilKata.textContent = kataArray.join(' ');
+        addWord(btn.textContent);
     }));
 
-    hapusBtn.addEventListener('click', () => {
-        if (kataArray.length > 0) {
-            kataArray.pop();
-            hasilKata.textContent = kataArray.length === 0 ? 'Klik tombol untuk mulai...' : kataArray.join(' ');
-            if (kataArray.length === 0) hasilKata.classList.add('text-secondary');
-        }
-    });
+    hapusBtn.addEventListener('click', removeLastWord);
 
-    resetBtn.addEventListener('click', () => {
-        kataArray = [];
-        hasilKata.textContent = 'Klik tombol untuk mulai...';
-        hasilKata.classList.add('text-secondary');
-        feedback.textContent = '';
-    });
+    resetBtn.addEventListener('click', resetWords);
 
     startBtn.addEventListener('click', () => {
         gameActive ? endGame(`Game diakhiri! Jawaban benar: ${terbilang(targetNumber)}`) : startGame();
@@ -134,37 +119,11 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
 
     submitBtn.addEventListener('click', () => {
         if (!gameActive) return;
-        const jawabanUser = kataArray.join(' ').trim();
-        const jawabanBenar = terbilang(targetNumber);
-        if (jawabanUser === jawabanBenar) {
-            feedback.textContent = "✅ Benar!";
-            feedback.className = "fw-bold fs-5 text-success";
-            score += 10;
-            scoreElement.textContent = score;
-            updateTargetNumber();
-        } else {
-            feedback.textContent = "❌ Salah! Coba lagi.";
-            feedback.className = "fw-bold fs-5 text-danger";
-        }
+        checkAnswer(); // ✅ ganti ke fungsi baru
     });
 
+
     // === FUNCTIONS ===
-    function updateTargetNumber() {
-        const difficulty = difficultySelect.value;
-        let randomNumber = generateRandomNumberByDifficulty(difficulty);
-        targetNumber = randomNumber;
-
-        const digits = container.querySelectorAll('#target-number .digit');
-        randomNumber.split('').forEach((digit, i) => {
-            digits[i].textContent = digit;
-        });
-
-        hasilKata.textContent = 'Klik tombol untuk mulai...';
-        hasilKata.classList.add('text-secondary');
-        kataArray = [];
-        feedback.textContent = '';
-    }
-
     function startGame() {
         score = 0;
         scoreElement.textContent = score;
@@ -173,7 +132,8 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         gameActive = true;
         startBtn.textContent = "Akhiri";
         difficultySelect.disabled = true;
-        updateTargetNumber();
+
+        nextQuestion(); // ✅ ganti dari updateTargetNumber()
 
         timerInterval = setInterval(() => {
             timer--;
@@ -181,11 +141,11 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             if (timer <= 0) endGame(`⏰ Waktu habis! Jawaban benar: ${terbilang(targetNumber)}`);
         }, 1000);
 
-        // Disable mode buttons
         if(onGameStateChange) {
             onGameStateChange(true);
         }
     }
+
 
     function endGame(message) {
         clearInterval(timerInterval);
@@ -200,6 +160,78 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             onGameStateChange(false);
         }
     }
+
+    function renderSlots(digits) {
+        targetNumberElement.innerHTML = '';
+
+        for (let i = 0; i < digits.length; i++) {
+            const span = document.createElement("span");
+            span.classList.add("digit");
+            span.dataset.index = i;
+            span.textContent = digit;
+            targetNumberElement.appendChild(span);
+
+            if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
+                const sep = document.createElement("span");
+                sep.classList.add("sep");
+                sep.textContent = ".";
+                targetNumberElement.appendChild(sep);
+            }
+        }
+    }
+
+    function nextQuestion() {
+        kataArray = [];
+        hasilKata.textContent = "Klik tombol untuk mulai...";
+        hasilKata.classList.add('text-secondary');
+        feedback.textContent = '';
+
+        const difficulty = difficultySelect.value;
+        targetNumber = generateRandomNumberByDifficulty(difficulty);
+        const digits = targetNumber.split('');
+
+        renderSlots(digits);
+    }
+
+    function checkAnswer() {
+        const jawabanUser = kataArray.join(' ').trim();
+        const jawabanBenar = terbilang(targetNumber);
+        if (jawabanUser === jawabanBenar) {
+            feedback.textContent = "✅ Benar!";
+            feedback.className = "fw-bold fs-5 text-success";
+            score += 10;
+            scoreElement.textContent = score;
+            nextQuestion();
+        } else {
+            feedback.textContent = "❌ Salah! Coba lagi.";
+            feedback.className = "fw-bold fs-5 text-danger";
+        }
+    }
+
+    function addWord(word) {
+        if (hasilKata.classList.contains('text-secondary')) {
+            hasilKata.classList.remove('text-secondary');
+            kataArray = [];
+        }
+        kataArray.push(word);
+        hasilKata.textContent = kataArray.join(' ');
+    }
+
+    function removeLastWord() {
+        if (kataArray.length > 0) {
+            kataArray.pop();
+            hasilKata.textContent = kataArray.length === 0 ? 'Klik tombol untuk mulai...' : kataArray.join(' ');
+            if (kataArray.length === 0) hasilKata.classList.add('text-secondary');
+        }
+    }
+
+    function resetWords() {
+        kataArray = [];
+        hasilKata.textContent = 'Klik tombol untuk mulai...';
+        hasilKata.classList.add('text-secondary');
+        feedback.textContent = '';
+    }
+
 
     function destroy() {
         clearInterval(timerInterval);

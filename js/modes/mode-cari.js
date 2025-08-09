@@ -1,4 +1,4 @@
-import { terbilang, generateRandomNumberByDifficulty } from '../utils.js';
+import { terbilang, generateRandomNumberByDifficulty, findFixedIndices } from '../utils.js';
 
 export function init({ container, scoreElement, timerElement, onGameStateChange }) {
     // === GAME STATE ===
@@ -184,18 +184,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
 
         const usedIndices = new Set();
-        const fixedIndices = [];
-
-        // Jika mudah, deteksi posisi tripel '000'
-        if (difficulty === "mudah") {
-            for (let i = 0; i <= targetDigits.length - 3; i++) {
-                if (targetDigits[i] === '0' && targetDigits[i+1] === '0' && targetDigits[i+2] === '0') {
-                    fixedIndices.push(i, i+1, i+2);
-                    i += 2; // lompat ke depan supaya tidak overlap
-                    if (fixedIndices.length >= 6) break; // maksimal 2 tripel
-                }
-            }
-        }
+        const fixedIndices = difficulty === 'mudah' ? findFixedIndices(targetDigits) : [];
 
         while (wrongIndices.length < wrongCount) {
             const idx = Math.floor(Math.random() * targetDigits.length);

@@ -1,4 +1,4 @@
-import { terbilang, generateRandomNumberByDifficulty, shuffleArray } from '../utils.js';
+import { terbilang, generateRandomNumberByDifficulty, shuffleArray, findFixedIndices } from '../utils.js';
 
 export function init({ container, scoreElement, timerElement, onGameStateChange }) {
     // === STATE ===
@@ -143,30 +143,34 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     }
 
     function renderSlots(digits, difficulty) {
-        targetNumberElement.innerHTML = '';
-        for (let i = 0; i < digits.length; i++) {
-            const span = document.createElement('span');
-            span.classList.add('digit');
-            span.dataset.index = i;
-
-            if (difficulty === 'mudah' && digits[i] === '0') {
-                span.textContent = '0';
-                span.classList.add('fixed');
-            } else {
-                span.textContent = '_';
-                span.addEventListener('click', () => handleSlotClick(i));
-            }
-
-            targetNumberElement.appendChild(span);
-
-            if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
-                const sep = document.createElement('span');
-                sep.classList.add('sep');
-                sep.textContent = '.';
-                targetNumberElement.appendChild(sep);
+            targetNumberElement.innerHTML = "";
+    
+            const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
+    
+            for (let i = 0; i < digits.length; i++) {
+                const span = document.createElement("span");
+                span.classList.add("digit");
+                span.dataset.index = i;
+    
+                if (fixedIndices.includes(i)) {
+                    span.textContent = digits[i];
+                    span.classList.add("fixed");
+                    filledSlots.push(i);
+                } else {
+                    span.textContent = "_";
+                    span.addEventListener('click', () => handleSlotClick(i));
+                }
+    
+                targetNumberElement.appendChild(span);
+    
+                if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
+                    const sep = document.createElement("span");
+                    sep.classList.add("sep");
+                    sep.textContent = ".";
+                    targetNumberElement.appendChild(sep);
+                }
             }
         }
-    }
 
     function handleSlotClick(index) {
         if (!gameActive || filledSlots.includes(index)) return;

@@ -98,14 +98,6 @@ export function generateRandomNumberByDifficulty(difficulty) {
     return groups.join('');
 }
 
-// Acak urutan array (untuk mode dengan angka acak)
-export function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-}
 
 export function findFixedIndices(digits) {
     const fixedIndices = [];
@@ -116,6 +108,15 @@ export function findFixedIndices(digits) {
             if (fixedIndices.length >= 6) break; // maksimal 2 tripel
         }
     }
-
+    
     return fixedIndices;
+}
+
+// Acak urutan array (untuk mode dengan angka acak)
+export function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }

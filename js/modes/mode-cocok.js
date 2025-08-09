@@ -281,9 +281,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function triplesMatch(targetTriples, wrongTriples) {
         if (targetTriples.length !== wrongTriples.length) return false;
         for (let i = 0; i < targetTriples.length; i++) {
-            for (let j = 0; j < 3; j++) {
-                if (targetTriples[i][j] !== wrongTriples[i][j]) return false;
-            }
+            if (targetTriples[i] !== wrongTriples[i]) return false;
         }
         return true;
     }
