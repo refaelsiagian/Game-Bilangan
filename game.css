@@ -140,3 +140,24 @@
     border-radius: 8px;
     margin-bottom: 10px;
 }
+
+/* MODE KEDIP */
+
+.option-viewer { 
+    border: 1px solid #ddd; 
+    padding: 12px; 
+    border-radius: 8px; 
+    min-height: 70px; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    text-align:center; 
+    background:#fafafa; 
+}
+
+.controls { 
+    margin-top:8px; 
+    display:flex; 
+    gap:8px; 
+    justify-content:center; 
+}

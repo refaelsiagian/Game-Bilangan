@@ -21,12 +21,6 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
 
     // ===== UI =====
     container.innerHTML = `
-        <style>
-            
-            .option-viewer { border: 1px solid #ddd; padding: 12px; border-radius: 8px; min-height: 70px; display:flex; align-items:center; justify-content:center; text-align:center; background:#fafafa; }
-            .controls { margin-top:8px; display:flex; gap:8px; justify-content:center; }
-        </style>
-
         <div class="row mb-3">
             <div class="col text-center">
                 <div class="digital-slots" id="target-number">
