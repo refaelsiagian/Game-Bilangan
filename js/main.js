@@ -53,6 +53,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
                     Gunakan tombol di bawah untuk memilih jawaban.
                 </p>`
+        },
+        kedip: {
+            file: './modes/mode-kedip.js',
+            instructions: `
+                <p>
+                    Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
+                    Gunakan tombol di bawah untuk memilih angka.
+                </p>`
         }
 
     };
