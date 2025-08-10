@@ -168,7 +168,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             const span = document.createElement("span");
             span.classList.add("digit");
             span.dataset.index = i;
-            span.textContent = digit;
+            span.textContent = digits[i];
             targetNumberElement.appendChild(span);
 
             if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
