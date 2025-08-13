@@ -7,6 +7,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     let timer = 60;
     let timerInterval = null;
     let gameActive = false;
+    let lives = 3;
 
     // === RENDER UI ===
     container.innerHTML = `
@@ -103,6 +104,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const feedback = container.querySelector('#feedback');
     const targetNumberElement = container.querySelector("#target-number");
     const difficultySelect = container.querySelector('#difficulty');
+    const livesContainer = document.getElementById('lives');
 
     // === EVENT LISTENERS ===
     wordButtons.forEach(btn => btn.addEventListener('click', () => {
@@ -129,6 +131,9 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         scoreElement.textContent = score;
         timer = 60;
         timerElement.textContent = timer;
+        lives = 3;
+        renderLives();
+
         gameActive = true;
         startBtn.textContent = "Akhiri";
         difficultySelect.disabled = true;
@@ -180,6 +185,18 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
+        });
+    }
+
+
     function nextQuestion() {
         kataArray = [];
         hasilKata.textContent = "Klik tombol untuk mulai...";
@@ -196,6 +213,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function checkAnswer() {
         const jawabanUser = kataArray.join(' ').trim();
         const jawabanBenar = terbilang(targetNumber);
+
         if (jawabanUser === jawabanBenar) {
             feedback.textContent = "✅ Benar!";
             feedback.className = "fw-bold fs-5 text-success";
@@ -203,10 +221,18 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             scoreElement.textContent = score;
             nextQuestion();
         } else {
-            feedback.textContent = "❌ Salah! Coba lagi.";
-            feedback.className = "fw-bold fs-5 text-danger";
+            lives--;
+            renderLives();
+
+            if (lives <= 0) {
+                endGame(`💔 Nyawa habis! Jawaban benar: ${jawabanBenar}`);
+            } else {
+                feedback.textContent = `❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`;
+                feedback.className = "fw-bold fs-5 text-danger";
+            }
         }
     }
+
 
     function addWord(word) {
         if (hasilKata.classList.contains('text-secondary')) {

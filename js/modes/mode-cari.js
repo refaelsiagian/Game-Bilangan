@@ -9,6 +9,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     let selectedIndices = [];
     let score = 0;
     let timer = 60;
+    let lives = 3;
     let timerInterval = null;
     let gameActive = false;
 
@@ -57,6 +58,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const submitBtn = document.getElementById("submit-btn");
     const difficultySelect = container.querySelector("#difficulty");
     const feedback = container.querySelector("#feedback");
+    const livesContainer = document.getElementById('lives');
 
     // === EVENT LISTENERS ===
     startBtn.addEventListener('click', () => {
@@ -71,11 +73,14 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function startGame() {
         score = 0;
         timer = 60;
+        lives = 3;
         gameActive = true;
         startBtn.textContent = "Akhiri";
         submitBtn.disabled = false;
         feedback.textContent = "";
         scoreElement.textContent = score;
+
+        renderLives();
 
         if (onGameStateChange) onGameStateChange(true);
 
@@ -113,6 +118,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 slot.classList.add("selected");
             }
             slot.classList.add("disabled"); // Supaya tidak bisa diklik
+        });
+    }
+
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
         });
     }
 
@@ -157,14 +173,28 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         const wrongSet = new Set(wrongIndices);
 
         if (selectedSet.size !== wrongSet.size) {
-            showFeedback("❌ Salah! Jumlah pilihan tidak sesuai", "text-danger");
-            return;
+            lives--;
+            renderLives();
+            if (lives <= 0) {
+                endGame("💔 Kehabisan nyawa!");
+                return;
+            } else {
+                showFeedback(`❌ Salah! Jumlah pilihan tidak sesuai. Sisa nyawa: ${lives}`, "text-danger");
+                return;
+            }
         }
 
         for (let idx of selectedSet) {
             if (!wrongSet.has(idx)) {
-                showFeedback("❌ Salah! Ada digit yang salah pilih", "text-danger");
-                return;
+                lives--;
+                renderLives();
+                if (lives <= 0) {
+                    endGame("💔 Kehabisan nyawa!");
+                    return;
+                } else {
+                    showFeedback(`❌ Salah! Ada digit yang salah pilih (Sisa nyawa: ${lives})`, "text-danger");
+                    return;
+                }
             }
         }
 

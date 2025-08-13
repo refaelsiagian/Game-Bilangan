@@ -9,6 +9,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     let currentDigit = '';
     let score = 0;
     let timer = 60;
+    let lives = 3;
     let timerInterval = null;
     let gameActive = false;
 
@@ -61,6 +62,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const discardBtn = container.querySelector('#discard-btn');
     const feedback = container.querySelector('#feedback');
     const difficultySelect = container.querySelector('#difficulty');
+    const livesContainer = document.getElementById('lives');
 
     // === EVENT LISTENERS ===
     difficultySelect.addEventListener('change', () => {
@@ -77,12 +79,14 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function startGame() {
         score = 0;
         timer = 60;
+        lives = 3;
         filledSlots = [];
         pendingDigits = [];
         gameActive = true;
         startBtn.textContent = 'Akhiri';
         feedback.textContent = '';
         scoreElement.textContent = score;
+        renderLives();
 
         // Disable mode buttons
         if(onGameStateChange){
@@ -143,34 +147,46 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     }
 
     function renderSlots(digits, difficulty) {
-            targetNumberElement.innerHTML = "";
-    
-            const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
-    
-            for (let i = 0; i < digits.length; i++) {
-                const span = document.createElement("span");
-                span.classList.add("digit");
-                span.dataset.index = i;
-    
-                if (fixedIndices.includes(i)) {
-                    span.textContent = digits[i];
-                    span.classList.add("fixed");
-                    filledSlots.push(i);
-                } else {
-                    span.textContent = "_";
-                    span.addEventListener('click', () => handleSlotClick(i));
-                }
-    
-                targetNumberElement.appendChild(span);
-    
-                if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
-                    const sep = document.createElement("span");
-                    sep.classList.add("sep");
-                    sep.textContent = ".";
-                    targetNumberElement.appendChild(sep);
-                }
+        targetNumberElement.innerHTML = "";
+
+        const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
+
+        for (let i = 0; i < digits.length; i++) {
+            const span = document.createElement("span");
+            span.classList.add("digit");
+            span.dataset.index = i;
+
+            if (fixedIndices.includes(i)) {
+                span.textContent = digits[i];
+                span.classList.add("fixed");
+                filledSlots.push(i);
+            } else {
+                span.textContent = "_";
+                span.addEventListener('click', () => handleSlotClick(i));
+            }
+
+            targetNumberElement.appendChild(span);
+
+            if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
+                const sep = document.createElement("span");
+                sep.classList.add("sep");
+                sep.textContent = ".";
+                targetNumberElement.appendChild(sep);
             }
         }
+    }
+
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
+        });
+    }
+
 
     function handleSlotClick(index) {
         if (!gameActive || filledSlots.includes(index)) return;
@@ -189,8 +205,16 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             } else {
                 showNextDigit();
             }
-        } else {
-            showFeedback('❌ Salah!', 'text-danger');
+        } else {            
+            lives--;
+            renderLives();
+
+            if (lives <= 0) {
+                endGame(`💔 Nyawa habis!`);
+            } else {
+                showFeedback(`❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`, 'text-danger');
+
+            }
         }
     }
 
@@ -200,8 +224,15 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         if (!targetDigits.includes(currentDigit)) {
             showFeedback('✅ Benar! Angka dibuang.', 'text-success');
             showNextDigit();
-        } else {
-            showFeedback('❌ Salah! Angka ini ada dalam target.', 'text-danger');
+        } else {            
+            lives--;
+            renderLives();
+
+            if (lives <= 0) {
+                endGame(`💔 Nyawa habis!`);
+            } else {
+                showFeedback(`❌ Salah! Angka ada dalam target. (Sisa nyawa: ${lives})`, 'text-danger');
+            }
         }
     }
 

@@ -4,6 +4,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     // === GAME STATE ===
     let score = 0;
     let timer = 60;
+    let lives = 3;
     let timerInterval = null;
     let gameActive = false;
     let correctAnswer = "";
@@ -64,6 +65,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const startBtn = container.querySelector("#start-btn");
     const difficultySelect = container.querySelector("#difficulty");
     const feedback = container.querySelector("#feedback");
+    const livesContainer = document.getElementById('lives');
     const optionButtons = [
         document.getElementById("option-1"),
         document.getElementById("option-2"),
@@ -86,10 +88,13 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function startGame() {
         score = 0;
         timer = 60;
+        lives = 3;
         gameActive = true;
         startBtn.textContent = "Akhiri";
         feedback.textContent = "";
         scoreElement.textContent = score;
+
+        renderLives();
 
         if (onGameStateChange) onGameStateChange(true);
 
@@ -163,6 +168,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
+        });
+    }
+
     function checkAnswer(selectedText, selectedBtn) {
         // Disable semua tombol
         optionButtons.forEach(btn => btn.disabled = true);
@@ -175,6 +191,9 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             score += 10;
             scoreElement.textContent = score;
         } else {
+            lives--;
+            renderLives();
+
             selectedBtn.classList.remove("btn-outline-primary");
             selectedBtn.classList.add("btn-danger");
             // Tandai jawaban benar
@@ -184,6 +203,10 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                     btn.classList.add("btn-success");
                 }
             });
+
+            if (lives <= 0) {
+                endGame("💔 Kehabisan nyawa!");            
+            }
         }
 
         revealFullNumber(); // Tampilkan semua digit

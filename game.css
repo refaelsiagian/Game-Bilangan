@@ -161,3 +161,20 @@
     gap:8px; 
     justify-content:center; 
 }
+
+/* LIVES */
+
+.lives-container {
+    display: flex;
+    gap: 5px;
+    font-size: 1.5rem; /* ukuran hati */
+}
+
+.heart {
+    transition: opacity 0.3s ease;
+}
+
+.heart.empty {
+    opacity: 0.2; /* hati kosong terlihat pudar */
+}
+

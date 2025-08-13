@@ -7,6 +7,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     let highlightedIndex = null;
     let score = 0;
     let timer = 60;
+    let lives = 3;
     let timerInterval = null;
     let gameActive = false;
 
@@ -57,6 +58,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const difficultySelect = container.querySelector("#difficulty");
     const feedback = container.querySelector("#feedback");
     const numberButtonsContainer = container.querySelector(".number-buttons");
+    const livesContainer = document.getElementById('lives');
 
     // === INIT NUMBER BUTTONS (0-9) ===
     numberButtonsContainer.innerHTML = "";
@@ -76,12 +78,15 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function startGame() {
         score = 0;
         timer = 60;
+        lives = 3;
         filledSlots = [];
         highlightedIndex = null;
         gameActive = true;
         startBtn.textContent = "Akhiri";
         feedback.textContent = "";
         scoreElement.textContent = score;
+
+        renderLives();
 
         if (onGameStateChange) onGameStateChange(true);
 
@@ -152,6 +157,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
+        });
+    }
+
     function handleNumberClick(num) {
         if (!gameActive || highlightedIndex === null) return;
 
@@ -176,7 +192,15 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 return;
             }
         } else {
-            showFeedback("❌ Salah!", "text-danger");
+            lives--;
+            renderLives();
+
+            if (lives <= 0) {
+                endGame(`💔 Nyawa habis!`);
+            } else {
+                feedback.textContent = `❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`;
+                feedback.className = "fw-bold fs-5 text-danger";
+            }
         }
 
         if (difficulty === "sulit" || correctDigit === String(num)) {

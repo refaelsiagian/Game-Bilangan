@@ -4,6 +4,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     // ===== STATE =====
     let score = 0;
     let timer = 60;
+    let lives = 3;
     let timerInterval = null;
     let blinkInterval = null;
     let gameActive = false;
@@ -82,6 +83,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     const startBtn = container.querySelector("#start-btn");
     const difficultySelect = container.querySelector("#difficulty");
     const feedback = container.querySelector("#feedback");
+    const livesContainer = document.getElementById('lives');
 
     const optionViewer = container.querySelector("#option-viewer");
     const prevBtn = container.querySelector("#prev-btn");
@@ -121,12 +123,15 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function startGame() {
         score = 0;
         timer = 60;
+        lives = 3;
         gameActive = true;
         difficulty = difficultySelect.value;
         startBtn.textContent = "Akhiri";
         scoreElement.textContent = score;
         timerElement.textContent = timer;
         showFeedback("", "");
+
+        renderLives();
 
         difficultySelect.disabled = true;
         setControlsEnabled(true);
@@ -233,6 +238,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
+    function renderLives() {
+        const hearts = livesContainer.querySelectorAll('.heart');
+        hearts.forEach((heart, index) => {
+            if (index < lives) {
+                heart.classList.remove('empty');
+            } else {
+                heart.classList.add('empty');
+            }
+        });
+    }
+
     function revealFullNumber() {
         blinkPositions = [];
         renderSlots(true);
@@ -278,9 +294,17 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 if (gameActive && timer > 0) nextQuestion();
             }, 900);
         } else {
+            lives--;
+            renderLives();
+
             selected.status = "wrong"; // tandai salah
-            showFeedback("Salah! Coba pilihan lain.", "text-danger");
             renderCurrentOption(); // update warna merah
+
+            if (lives <= 0) {
+                endGame("💔 Kehabisan nyawa!");
+            } else {
+                showFeedback("Salah! Coba pilihan lain.", "text-danger");
+            }
         }
     }
 
