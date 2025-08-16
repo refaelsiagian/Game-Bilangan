@@ -1,27 +1,23 @@
 import { terbilang, generateRandomNumberByDifficulty, shuffleArray, findFixedIndices } from '../utils.js';
 
-export function init({ container, scoreElement, timerElement, onGameStateChange }) {
+export async function init(core, { container, onGameStateChange } = {}) {
     // ===== STATE =====
-    let score = 0;
-    let timer = 60;
-    let lives = 3;
-    let timerInterval = null;
-    let blinkInterval = null;
-    let gameActive = false;
-
     let targetNumber = "";
     let digits = [];
     let fixedDigitIndices = [];
     let blinkPositions = [];
     let prevBlinkPositions = [];
-    let prevBlinkPositions2 = []; // simpan 2 blink sebelumnya
+    let prevBlinkPositions2 = []; 
     let difficulty = "sedang";
 
     let options = [];
     let currentOptionIndex = 0;
+    let blinkInterval = null;
+    let listeners = [];
 
-    // ===== UI =====
-    container.innerHTML = `
+    // ===== UI RENDER =====
+    function renderUI() {
+        container.innerHTML = `
         <div class="row mb-3">
             <div class="col text-center">
                 <div class="digital-slots" id="target-number">
@@ -76,146 +72,49 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 <div id="feedback" class="fw-bold fs-5"></div>
             </div>
         </div>
-    `;
-
-    // ===== ELEMENT REFERENCES =====
-    const targetNumberElement = container.querySelector("#target-number");
-    const startBtn = container.querySelector("#start-btn");
-    const difficultySelect = container.querySelector("#difficulty");
-    const feedback = container.querySelector("#feedback");
-    const livesContainer = document.getElementById('lives');
-
-    const optionViewer = container.querySelector("#option-viewer");
-    const prevBtn = container.querySelector("#prev-btn");
-    const nextBtn = container.querySelector("#next-btn");
-    const submitBtn = container.querySelector("#submit-btn");
-    const optionIndexEl = container.querySelector("#option-index");
-
-    setControlsEnabled(false);
-
-    // ===== EVENTS =====
-    startBtn.addEventListener("click", () => {
-        if (gameActive) {
-            endGame("Game diakhiri.");
-        } else {
-            startGame();
-        }
-    });
-
-    prevBtn.addEventListener("click", () => {
-        if (options.length === 0) return;
-        currentOptionIndex = (currentOptionIndex - 1 + options.length) % options.length;
-        renderCurrentOption();
-    });
-
-    nextBtn.addEventListener("click", () => {
-        if (options.length === 0) return;
-        currentOptionIndex = (currentOptionIndex + 1) % options.length;
-        renderCurrentOption();
-    });
-
-    submitBtn.addEventListener("click", () => {
-        if (!gameActive || options.length === 0) return;
-        handleSubmit();
-    });
-
-    // ===== GAME FLOW =====
-    function startGame() {
-        score = 0;
-        timer = 60;
-        lives = 3;
-        gameActive = true;
-        difficulty = difficultySelect.value;
-        startBtn.textContent = "Akhiri";
-        scoreElement.textContent = score;
-        timerElement.textContent = timer;
-        showFeedback("", "");
-
-        renderLives();
-
-        difficultySelect.disabled = true;
-        setControlsEnabled(true);
-
-        if (onGameStateChange) onGameStateChange(true);
-
-        nextQuestion();
-
-        timerInterval = setInterval(() => {
-            timer--;
-            timerElement.textContent = timer;
-            if (timer <= 0) {
-                endGame("⏰ Waktu habis!");
-            }
-        }, 1000);
+        `;
     }
 
-    function endGame(message) {
-        clearInterval(timerInterval);
-        clearInterval(blinkInterval);
-        gameActive = false;
-        startBtn.textContent = "Mulai Lagi";
-        showFeedback(message, "text-info");
-        difficultySelect.disabled = false;
-
-        // Tetap bisa lihat opsi
-        setControlsEnabled(true);
-
-        revealFullNumber();
-
-        // Tandai jawaban benar
-        const correctIndex = options.findIndex(o => o.isCorrect);
-        if (correctIndex !== -1) {
-            options[correctIndex].status = "correct";
-            currentOptionIndex = correctIndex; // langsung tampilkan yang benar
-        }
-
-        renderCurrentOption();
-
-        if (onGameStateChange) onGameStateChange(false);
+    // ===== QUERY HELPERS =====
+    function queryDOM() {
+        return {
+            targetNumberElement: container.querySelector("#target-number"),
+            startBtn: container.querySelector("#start-btn"),
+            difficultySelect: container.querySelector("#difficulty"),
+            feedback: container.querySelector("#feedback"),
+            optionViewer: container.querySelector("#option-viewer"),
+            prevBtn: container.querySelector("#prev-btn"),
+            nextBtn: container.querySelector("#next-btn"),
+            submitBtn: container.querySelector("#submit-btn"),
+            optionIndexEl: container.querySelector("#option-index"),
+            livesContainer: document.getElementById('lives')
+        };
     }
 
-
-
-    function nextQuestion() {
-        clearInterval(blinkInterval);
-        blinkPositions = [];
-        options = [];
-        currentOptionIndex = 0;
-        showFeedback("", "");
-
-        difficulty = difficultySelect.value;
-
-        targetNumber = generateRandomNumberByDifficulty(difficulty);
-        digits = targetNumber.split("");
-
-        // Langsung cari digit tetap (max 2 triple) pakai fungsi di utils.js
-        fixedDigitIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
-
-        const correctText = terbilang(targetNumber);
-        const wrongTexts = generateWrongOptions(targetNumber, difficulty, 7, fixedDigitIndices);
-        const allOptions = [correctText, ...wrongTexts];
-        shuffleArray(allOptions);
-
-        // simpan status setiap opsi
-        options = allOptions.map(txt => ({
-            text: txt,
-            isCorrect: txt === correctText,
-            status: "normal"
-        }));
-        currentOptionIndex = 0;
-        renderCurrentOption();
-
-        // jalankan efek kedip
-        blinkInterval = setInterval(() => {
-            chooseBlinkPositions();
-            renderSlots();
-        }, 700);
-
-        renderSlots();
+    // ===== LISTENER HELPERS =====
+    function addListener(el, evt, handler) {
+        if (!el) return;
+        el.addEventListener(evt, handler);
+        listeners.push([el, evt, handler]);
+    }
+    function removeAllListeners() {
+        listeners.forEach(([el, evt, handler]) => el.removeEventListener(evt, handler));
+        listeners = [];
     }
 
+    function renderLives() {
+        const { livesContainer } = queryDOM();
+        if (!livesContainer) return;
+        const hearts = livesContainer.querySelectorAll('.heart');
+        const l = core.getState().lives;
+        hearts.forEach((heart, index) => {
+            if (index < l) heart.classList.remove('empty');
+            else heart.classList.add('empty');
+        });
+    }
 
     function renderSlots(revealAll = false) {
+        const { targetNumberElement } = queryDOM();
         targetNumberElement.innerHTML = "";
         for (let i = 0; i < digits.length; i++) {
             const span = document.createElement("span");
@@ -238,23 +137,13 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
-    function renderLives() {
-        const hearts = livesContainer.querySelectorAll('.heart');
-        hearts.forEach((heart, index) => {
-            if (index < lives) {
-                heart.classList.remove('empty');
-            } else {
-                heart.classList.add('empty');
-            }
-        });
-    }
-
     function revealFullNumber() {
         blinkPositions = [];
         renderSlots(true);
     }
 
     function renderCurrentOption() {
+        const { optionViewer, optionIndexEl } = queryDOM();
         if (!options || options.length === 0) {
             optionViewer.textContent = "-- Tidak ada opsi --";
             optionIndexEl.textContent = `0 / 0`;
@@ -265,63 +154,34 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         optionIndexEl.textContent = `${currentOptionIndex + 1} / ${options.length}`;
 
         if (opt.status === "wrong") {
-            optionViewer.style.backgroundColor = "#dc3545"; // merah
+            optionViewer.style.backgroundColor = "#dc3545";
             optionViewer.style.color = "#fff";
         } else if (opt.status === "correct") {
-            optionViewer.style.backgroundColor = "#28a745"; // hijau
+            optionViewer.style.backgroundColor = "#28a745";
             optionViewer.style.color = "#fff";
         } else {
-            optionViewer.style.backgroundColor = "#fafafa"; // putih
+            optionViewer.style.backgroundColor = "#fafafa";
             optionViewer.style.color = "#000";
         }
     }
 
-
-    function handleSubmit() {
-        const selected = options[currentOptionIndex];
-        if (!selected) return;
-
-        if (selected.isCorrect) {
-            score += 10;
-            scoreElement.textContent = score;
-            selected.status = "correct"; // tandai benar
-            showFeedback("Benar! Lanjut ke soal berikutnya...", "text-success");
-            revealFullNumber();
-            clearInterval(blinkInterval);
-            renderCurrentOption(); // update warna hijau
-
-            setTimeout(() => {
-                if (gameActive && timer > 0) nextQuestion();
-            }, 900);
-        } else {
-            lives--;
-            renderLives();
-
-            selected.status = "wrong"; // tandai salah
-            renderCurrentOption(); // update warna merah
-
-            if (lives <= 0) {
-                endGame("💔 Kehabisan nyawa!");
-            } else {
-                showFeedback("Salah! Coba pilihan lain.", "text-danger");
-            }
-        }
+    function setControlsEnabled(enabled) {
+        const { prevBtn, nextBtn, submitBtn } = queryDOM();
+        if (prevBtn) prevBtn.disabled = !enabled;
+        if (nextBtn) nextBtn.disabled = !enabled;
+        if (submitBtn) submitBtn.disabled = !enabled;
     }
-
 
     function chooseBlinkPositions() {
         const totalDigits = digits.length;
         let newPositions = [];
 
-        // buat daftar posisi yang dipakai di dua blink terakhir
         const recentPositions = Array.from(new Set([...prevBlinkPositions, ...prevBlinkPositions2]));
 
         if (difficulty === "mudah") {
             const candidates = [];
             for (let i = 0; i < totalDigits; i++) {
-                if (!fixedDigitIndices.includes(i) && !recentPositions.includes(i)) {
-                    candidates.push(i);
-                }
+                if (!fixedDigitIndices.includes(i) && !recentPositions.includes(i)) candidates.push(i);
             }
             if (candidates.length === 0) {
                 blinkPositions = [];
@@ -331,9 +191,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         } else {
             const candidates = [];
             for (let i = 0; i < totalDigits; i++) {
-                if (!recentPositions.includes(i)) {
-                    candidates.push(i);
-                }
+                if (!recentPositions.includes(i)) candidates.push(i);
             }
             if (candidates.length < 2) {
                 blinkPositions = [];
@@ -343,27 +201,22 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             newPositions = candidates.slice(0, 2).sort((a, b) => a - b);
         }
 
-        // update riwayat blink
         prevBlinkPositions2 = prevBlinkPositions;
         prevBlinkPositions = newPositions;
         blinkPositions = newPositions;
     }
 
-
-    // ===== WRONG OPTIONS GENERATOR =====
-    function generateWrongOptions(targetNumberStr, difficultyLevel, count, fixedDigitIndices) {
+    function generateWrongOptions(targetNumberStr, difficultyLevel, count, fixedDigitIndicesParam) {
         const result = new Set();
         const correctText = terbilang(targetNumberStr);
         const digitsOriginal = targetNumberStr.split("");
         const totalDigits = digitsOriginal.length;
 
-        // Cari triple start index yang boleh diacak (0, 3, 6, dst.)
         const availableTriples = [];
         for (let start = 0; start < totalDigits; start += 3) {
-            // cek kalau triple ini semua digitnya fixed, skip
-            if (fixedDigitIndices.includes(start) &&
-                fixedDigitIndices.includes(start + 1) &&
-                fixedDigitIndices.includes(start + 2)) {
+            if (fixedDigitIndicesParam.includes(start) &&
+                fixedDigitIndicesParam.includes(start + 1) &&
+                fixedDigitIndicesParam.includes(start + 2)) {
                 continue;
             }
             availableTriples.push(start);
@@ -372,8 +225,6 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         let attempts = 0;
         while (result.size < count && attempts < 1000) {
             attempts++;
-
-            // Pilih triple yang mau diacak
             let triplesToPermute = [];
             if (difficultyLevel === "mudah") {
                 if (availableTriples.length === 0) {
@@ -382,17 +233,14 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                     triplesToPermute = [availableTriples[Math.floor(Math.random() * availableTriples.length)]];
                 }
             } else {
-                // pilih dua triple acak
                 const shuffled = availableTriples.slice();
                 shuffleArray(shuffled);
                 triplesToPermute = shuffled.slice(0, 2);
             }
 
-            // Salin digits asli untuk dimodifikasi
             const candidateDigits = digitsOriginal.slice();
             let valid = false;
 
-            // Permutasi tiap triple yang dipilih
             for (const start of triplesToPermute) {
                 const tripleDigits = candidateDigits.slice(start, start + 3);
                 const perm = pickPermutation(tripleDigits.join(""));
@@ -410,9 +258,7 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
             const wrongNumber = candidateDigits.join("");
             const wrongText = terbilang(wrongNumber);
 
-            if (wrongText !== correctText) {
-                result.add(wrongText);
-            }
+            if (wrongText !== correctText) result.add(wrongText);
         }
 
         return Array.from(result).slice(0, count);
@@ -437,20 +283,148 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         return candidates[Math.floor(Math.random() * candidates.length)];
     }
 
+    function nextQuestion() {
+        clearInterval(blinkInterval);
+        blinkPositions = [];
+        options = [];
+        currentOptionIndex = 0;
+        showFeedback("", "");
+
+        difficulty = queryDOM().difficultySelect.value;
+        targetNumber = generateRandomNumberByDifficulty(difficulty);
+        digits = targetNumber.split("");
+        fixedDigitIndices = (difficulty === "mudah") ? findFixedIndices(digits) : [];
+
+        const correctText = terbilang(targetNumber);
+        const wrongTexts = generateWrongOptions(targetNumber, difficulty, 7, fixedDigitIndices);
+        const allOptions = [correctText, ...wrongTexts];
+        shuffleArray(allOptions);
+
+        options = allOptions.map(txt => ({
+            text: txt,
+            isCorrect: txt === correctText,
+            status: "normal"
+        }));
+
+        currentOptionIndex = 0;
+        renderCurrentOption();
+
+        blinkInterval = setInterval(() => {
+            chooseBlinkPositions();
+            renderSlots();
+        }, 700);
+
+        renderSlots();
+    }
+
+    function handleSubmit() {
+        const selected = options[currentOptionIndex];
+        if (!selected) return;
+
+        if (selected.isCorrect) {
+            // Show full number and mark as correct
+            selected.status = "correct";
+            renderCurrentOption();
+            showFeedback("Benar! Lanjut ke soal berikutnya...", "text-success");
+            revealFullNumber();
+            clearInterval(blinkInterval);
+
+            core.rules.onCorrect?.();
+        } else {
+            core.rules.onWrong?.(false);
+
+            const updated = core.getState();
+            selected.status = "wrong";
+            renderCurrentOption();
+
+            if (updated.lives > 0) {
+                showFeedback(`Salah! Coba lagi. Sisa nyawa: ${updated.lives}`, "text-danger");
+            }
+        }
+    }
+
     function showFeedback(message, className) {
+        const { feedback } = queryDOM();
         feedback.textContent = message;
         feedback.className = `fw-bold fs-5 ${className || ""}`;
     }
 
-    function setControlsEnabled(enabled) {
-        prevBtn.disabled = !enabled;
-        nextBtn.disabled = !enabled;
-        submitBtn.disabled = !enabled;
-    }
+    // ===== Core mode API registration =====
+    core.registerModeAPI({
+        beforeStart() {
+            renderUI();
+
+            const { startBtn, prevBtn, nextBtn, submitBtn } = queryDOM();
+            addListener(startBtn, 'click', () => {
+                const running = core.getState().running;
+                running ? core.endGame("Game dihentikan") : core.startGame();
+            });
+
+            addListener(prevBtn, 'click', () => {
+                if (!options || options.length === 0) return;
+                currentOptionIndex = (currentOptionIndex - 1 + options.length) % options.length;
+                renderCurrentOption();
+            });
+
+            addListener(nextBtn, 'click', () => {
+                if (!options || options.length === 0) return;
+                currentOptionIndex = (currentOptionIndex + 1) % options.length;
+                renderCurrentOption();
+            });
+
+            addListener(submitBtn, 'click', () => {
+                const st = core.getState();
+                if (!st.running) return;
+                handleSubmit();
+            });
+
+            setControlsEnabled(false);
+            showFeedback('', '');
+        },
+
+        afterStart() {
+            const { startBtn, difficultySelect } = queryDOM();
+            startBtn.textContent = "Akhiri";
+            difficultySelect.disabled = true;
+            setControlsEnabled(true);
+
+            nextQuestion();
+            onGameStateChange?.(true);
+        },
+
+        beforeEnd() {
+            clearInterval(blinkInterval);
+            revealFullNumber();
+
+            // Show correct answer
+            const ci = options.findIndex(o => o.isCorrect);
+            if (ci !== -1) {
+                options[ci].status = "correct";
+                currentOptionIndex = ci;
+            }
+            renderCurrentOption();
+            setControlsEnabled(true);
+        },
+
+        afterEnd(message) {
+            const { startBtn, difficultySelect } = queryDOM();
+            showFeedback(message, "text-info");
+            startBtn.textContent = "Mulai Lagi";
+            startBtn.disabled = false;
+            difficultySelect.disabled = false;
+            onGameStateChange?.(false);
+        },
+
+        nextQuestion() {
+            setTimeout(() => {
+                nextQuestion();
+            }, 1000);
+        }
+    });
 
     function destroy() {
-        clearInterval(timerInterval);
         clearInterval(blinkInterval);
+        removeAllListeners();
     }
 
     return { destroy };

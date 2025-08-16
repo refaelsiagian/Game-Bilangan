@@ -1,108 +1,146 @@
+import { createCore } from './core.js';
+
+const categoryMap = {
+    fasterBetter: () => import('./categories/fasterBetter.js'),
+    moreBetter:  () => import('./categories/moreBetter.js')
+};
+
+const modesConfig = {
+    tulis: {
+        file: './modes/mode-tulis.js',
+        category: 'fasterBetter',
+        instructions: `
+            <p>
+                Tuliskan bentuk terbilang dari bilangan yang tertera di bawah ini.
+                Gunakan tombol di bawah untuk memilih kata yang sesuai.
+            </p>`
+    },
+    pilih: {
+        file: './modes/mode-pilih.js',
+        category: 'fasterBetter',
+        instructions: `
+            <p>
+                Angka akan tampil secara acak di bagian bawah.
+                Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.
+            </p>`
+    },
+    isi: {
+        file: './modes/mode-isi.js',
+        category: 'fasterBetter',
+        instructions: `
+            <p>
+                Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
+                Gunakan tombol di bawah untuk memilih angka.
+            </p>`
+    },
+    cari: {
+        file: './modes/mode-cari.js',
+        category: 'moreBetter',
+        instructions: `
+            <p>
+                Cari digit angka yang tidak sesuai dengan terbilang yang diberikan.
+                Klik pada angka untuk memilihnya.
+            </p>`
+    },
+    cocok: {
+        file: './modes/mode-cocok.js',
+        category: 'moreBetter',
+        instructions: `
+            <p>
+                Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
+                Gunakan tombol di bawah untuk memilih jawaban.
+            </p>`
+    },
+    kedip: {
+        file: './modes/mode-kedip.js',
+        category: 'moreBetter',
+        instructions: `
+            <p>
+                Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
+                Gunakan tombol di bawah untuk memilih angka.
+            </p>`
+    }
+
+};
+
+// Konfigurasi awal game
+const gameConfig = {
+    lives: 3,
+    timer: 60,
+    baseScore: 10
+};
+
 document.addEventListener('DOMContentLoaded', () => {
-    const scoreElement = document.getElementById('score');
-    const timerElement = document.getElementById('timer');
     const gameContainer = document.getElementById('game-container');
-    const modeButtons = document.querySelectorAll('.mode-btn');
-    const instructionsElement = document.getElementById('game-instructions');
+    const scoreEl       = document.getElementById('score');
+    const timerEl       = document.getElementById('timer');
+    const livesEl       = document.getElementById('lives');
+    const instructionsEl= document.getElementById('game-instructions');
+    const modeButtons   = document.querySelectorAll('.mode-btn');
 
-    let currentMode = null;
-    let modeInstance = null;
+    let currentCore = null;
+    let currentModeModule = null;
+    let currentModeInstance = null;
 
-    const setModeButtonsDisabled = (state) => {
-        modeButtons.forEach(btn => btn.disabled = state);
-    };
-
-    // Mapping mode dengan file JS dan instruksi
-    const modesConfig = {
-        tulis: {
-            file: './modes/mode-tulis.js',
-            instructions: `
-                <p>
-                    Tuliskan bentuk terbilang dari bilangan yang tertera di bawah ini.
-                    Gunakan tombol di bawah untuk memilih kata yang sesuai.
-                </p>`
-        },
-        pilih: {
-            file: './modes/mode-pilih.js',
-            instructions: `
-                <p>
-                    Angka akan tampil secara acak di bagian bawah.
-                    Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.
-                </p>`
-        },
-        isi: {
-            file: './modes/mode-isi.js',
-            instructions: `
-                <p>
-                    Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
-                    Gunakan tombol di bawah untuk memilih angka.
-                </p>`
-        },
-        cari: {
-            file: './modes/mode-cari.js',
-            instructions: `
-                <p>
-                    Cari digit angka yang tidak sesuai dengan terbilang yang diberikan.
-                    Klik pada angka untuk memilihnya.
-                </p>`
-        },
-        cocok: {
-            file: './modes/mode-cocok.js',
-            instructions: `
-                <p>
-                    Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
-                    Gunakan tombol di bawah untuk memilih jawaban.
-                </p>`
-        },
-        kedip: {
-            file: './modes/mode-kedip.js',
-            instructions: `
-                <p>
-                    Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
-                    Gunakan tombol di bawah untuk memilih angka.
-                </p>`
+    function unloadCurrentMode() {
+        if (currentModeInstance?.destroy) {
+            try { currentModeInstance.destroy(); } catch (e) { console.warn(e); }
         }
-
-    };
+        gameContainer.innerHTML = '';
+        currentCore = null;
+        currentModeModule = null;
+        currentModeInstance = null;
+    }
 
     modeButtons.forEach(btn => {
         btn.addEventListener('click', async () => {
-            const selectedMode = btn.dataset.mode;
-            if (selectedMode === currentMode) return;
-
-            // Update UI tombol
-            modeButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Reset UI game container
-            gameContainer.innerHTML = '<div class="text-center text-secondary"><p>Loading mode...</p></div>';
-            currentMode = selectedMode;
-
-            // Hentikan mode lama jika ada
-            if (modeInstance?.destroy) {
-                modeInstance.destroy();
-            }
-
-            // Load mode baru
-            const config = modesConfig[selectedMode];
-            if (!config) {
-                gameContainer.innerHTML = `<div class="text-center text-muted"><p>Mode "${selectedMode}" belum tersedia.</p></div>`;
+            const key = btn.dataset.mode;
+            if (!modesConfig[key]) {
+                console.warn('Mode tidak ditemukan:', key);
                 return;
             }
 
+            modeButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            unloadCurrentMode();
+
+            const cfg = modesConfig[key];
+            instructionsEl.innerHTML = cfg.instructions || '';
+
             try {
-                const module = await import(config.file);
-                instructionsElement.innerHTML = config.instructions;
-                modeInstance = module.init({
+                const [catModule, modeModule] = await Promise.all([
+                    categoryMap[cfg.category]().then(m => m.default ?? m),
+                    import(cfg.file)
+                ]);
+
+                // === Core dibuat dengan elemen global ===
+                currentCore = createCore(catModule, {
+                    ...gameConfig,
+                    scoreElement: scoreEl,
+                    timerElement: timerEl,
+                    livesElement: livesEl
+                }, gameContainer);
+
+                // === Mode hanya terima container + callback ===
+                const options = {
                     container: gameContainer,
-                    scoreElement,
-                    timerElement,
-                    onGameStateChange: setModeButtonsDisabled
-                });
+                    onGameStateChange: (isRunning) => {
+                        document.querySelectorAll('.mode-btn').forEach(b => b.disabled = isRunning);
+                    }
+                };
+
+                currentModeModule = modeModule;
+                currentModeInstance = await (modeModule.init?.(currentCore, options) ?? null);
+
+                if (typeof currentCore.prepareGame === 'function') {
+                    currentCore.prepareGame();
+                }
+
             } catch (err) {
-                console.error('Error loading mode:', err);
-                gameContainer.innerHTML = `<div class="text-center text-danger"><p>Gagal memuat mode.</p></div>`;
+                console.error('Gagal load mode/category:', err);
+                gameContainer.innerHTML = `<div class="text-danger">Gagal memuat mode. Lihat console.</div>`;
             }
         });
     });
+
 });

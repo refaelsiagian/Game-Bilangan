@@ -1,179 +1,129 @@
+// modes/mode-tulis.js
 import { terbilang, generateRandomNumberByDifficulty } from '../utils.js';
 
-export function init({ container, scoreElement, timerElement, onGameStateChange }) {
+export async function init(core, { container, onGameStateChange } = {}) {
     let kataArray = [];
     let targetNumber = null;
-    let score = 0;
-    let timer = 60;
-    let timerInterval = null;
-    let gameActive = false;
-    let lives = 3;
+    let listeners = [];
 
-    // === RENDER UI ===
-    container.innerHTML = `
-        <div class="row mb-3">
-            <div class="col text-center">
-                <div class="digital-slots" id="target-number">
-                    ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
-                    ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
-                    ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
-                    ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
-                    ${'<span class="digit">_</span>'.repeat(3)}
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-3 text-center">
-            <div class="col">
-                <label>Pilih Kesulitan:</label>
-                <select id="difficulty" class="form-select w-auto d-inline-block">
-                    <option value="mudah">Mudah</option>
-                    <option value="sedang" selected>Sedang</option>
-                    <option value="sulit">Sulit</option>
-                </select>
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col text-center">
-                <button id="start-btn" class="btn btn-info">Mulai</button>
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col text-center">
-                <div class="border rounded p-3 bg-white" style="min-height: 60px;">
-                    <span id="hasil-kata" class="text-secondary">Klik tombol untuk mulai...</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col text-center">
-                <button id="hapus-btn" class="btn btn-warning me-2">Hapus</button>
-                <button id="reset-btn" class="btn btn-danger">Reset</button>
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col-12 col-lg-6 mb-3">
-                <h5 class="text-center mb-2">Angka Dasar</h5>
-                <div class="row g-2">
-                    ${['nol','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan']
-                        .map(word => `<div class="col-4"><button class="btn btn-outline-primary w-100 word-btn">${word}</button></div>`).join('')}
-                </div>
-            </div>
-
-            <div class="col-6 col-lg-3 mb-3">
-                <h5 class="text-center mb-2">Satuan</h5>
-                <div class="row g-2">
-                    ${['puluh','belas','ratus','ribu','juta','miliar','triliun']
-                        .map(word => `<div class="col-6"><button class="btn btn-outline-secondary w-100 word-btn">${word}</button></div>`).join('')}
-                </div>
-            </div>
-
-            <div class="col-6 col-lg-3 mb-3">
-                <h5 class="text-center mb-2">Khusus</h5>
-                <div class="row g-2">
-                    ${['sepuluh','sebelas','seratus','seribu']
-                        .map(word => `<div class="col-12"><button class="btn btn-outline-dark w-100 word-btn">${word}</button></div>`).join('')}
-                </div>
-            </div>
-        </div>
-
-        <div class="row mb-3">
-            <div class="col text-center">
-                <button id="submit-btn" class="btn btn-success btn-lg px-5">Submit</button>
-            </div>
-        </div>
-
-        <div class="row">
-            <div class="col text-center">
-                <div id="feedback" class="fw-bold fs-5"></div>
-            </div>
-        </div>
-    `;
-
-    // === DOM REFERENCES ===
-    const hasilKata = container.querySelector('#hasil-kata');
-    const wordButtons = container.querySelectorAll('.word-btn');
-    const startBtn = container.querySelector('#start-btn');
-    const hapusBtn = container.querySelector('#hapus-btn');
-    const resetBtn = container.querySelector('#reset-btn');
-    const submitBtn = container.querySelector('#submit-btn');
-    const feedback = container.querySelector('#feedback');
-    const targetNumberElement = container.querySelector("#target-number");
-    const difficultySelect = container.querySelector('#difficulty');
-    const livesContainer = document.getElementById('lives');
-
-    // === EVENT LISTENERS ===
-    wordButtons.forEach(btn => btn.addEventListener('click', () => {
-        addWord(btn.textContent);
-    }));
-
-    hapusBtn.addEventListener('click', removeLastWord);
-
-    resetBtn.addEventListener('click', resetWords);
-
-    startBtn.addEventListener('click', () => {
-        gameActive ? endGame(`Game diakhiri! Jawaban benar: ${terbilang(targetNumber)}`) : startGame();
-    });
-
-    submitBtn.addEventListener('click', () => {
-        if (!gameActive) return;
-        checkAnswer(); // ✅ ganti ke fungsi baru
-    });
-
-
-    // === FUNCTIONS ===
-    function startGame() {
-        score = 0;
-        scoreElement.textContent = score;
-        timer = 60;
-        timerElement.textContent = timer;
-        lives = 3;
-        renderLives();
-
-        gameActive = true;
-        startBtn.textContent = "Akhiri";
-        difficultySelect.disabled = true;
-
-        nextQuestion(); // ✅ ganti dari updateTargetNumber()
-
-        timerInterval = setInterval(() => {
-            timer--;
-            timerElement.textContent = timer;
-            if (timer <= 0) endGame(`⏰ Waktu habis! Jawaban benar: ${terbilang(targetNumber)}`);
-        }, 1000);
-
-        if(onGameStateChange) {
-            onGameStateChange(true);
-        }
+    // === Helper ambil elemen lokal ===
+    function queryDOM() {
+        return {
+            hasilKata: container.querySelector('#hasil-kata'),
+            wordButtons: Array.from(container.querySelectorAll('.word-btn')),
+            startBtn: container.querySelector('#start-btn'),
+            hapusBtn: container.querySelector('#hapus-btn'),
+            resetBtn: container.querySelector('#reset-btn'),
+            submitBtn: container.querySelector('#submit-btn'),
+            feedback: container.querySelector('#feedback'),
+            targetNumberElement: container.querySelector("#target-number"),
+            difficultySelect: container.querySelector('#difficulty')
+        };
     }
 
-
-    function endGame(message) {
-        clearInterval(timerInterval);
-        gameActive = false;
+    // === Feedback helper ===
+    function showFeedback(message, className) {
+        const { feedback } = queryDOM();
+        if (!feedback) return;
         feedback.textContent = message;
-        feedback.className = "fw-bold fs-5 text-info";
-        startBtn.textContent = "Mulai Lagi";
-        difficultySelect.disabled = false;
-
-        // Enable mode buttons
-        if(onGameStateChange) {
-            onGameStateChange(false);
-        }
+        feedback.className = `fw-bold fs-5 ${className}`;
     }
 
-    function renderSlots(digits) {
-        targetNumberElement.innerHTML = '';
+    // === Render UI ===
+    function renderUI() {
+        container.innerHTML = `
+            <div class="row mb-3">
+                <div class="col text-center">
+                    <div class="digital-slots" id="target-number">
+                        ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
+                        ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
+                        ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
+                        ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
+                        ${'<span class="digit">_</span>'.repeat(3)}
+                    </div>
+                </div>
+            </div>
 
-        for (let i = 0; i < digits.length; i++) {
+            <div class="row mb-3 text-center">
+                <div class="col">
+                    <label>Pilih Kesulitan:</label>
+                    <select id="difficulty" class="form-select w-auto d-inline-block">
+                        <option value="mudah">Mudah</option>
+                        <option value="sedang" selected>Sedang</option>
+                        <option value="sulit">Sulit</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col text-center">
+                    <button id="start-btn" class="btn btn-info">Mulai</button>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col text-center">
+                    <div class="border rounded p-3 bg-white" style="min-height: 60px;">
+                        <span id="hasil-kata" class="text-secondary">Klik tombol untuk mulai...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col text-center">
+                    <button id="hapus-btn" class="btn btn-warning me-2">Hapus</button>
+                    <button id="reset-btn" class="btn btn-danger">Reset</button>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-12 col-lg-6 mb-3">
+                    <h5 class="text-center mb-2">Angka Dasar</h5>
+                    <div class="row g-2">
+                        ${['nol','satu','dua','tiga','empat','lima','enam','tujuh','delapan','sembilan']
+                            .map(word => `<div class="col-4"><button class="btn btn-outline-primary w-100 word-btn">${word}</button></div>`).join('')}
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3 mb-3">
+                    <h5 class="text-center mb-2">Satuan</h5>
+                    <div class="row g-2">
+                        ${['puluh','belas','ratus','ribu','juta','miliar','triliun']
+                            .map(word => `<div class="col-6"><button class="btn btn-outline-secondary w-100 word-btn">${word}</button></div>`).join('')}
+                    </div>
+                </div>
+
+                <div class="col-6 col-lg-3 mb-3">
+                    <h5 class="text-center mb-2">Khusus</h5>
+                    <div class="row g-2">
+                        ${['sepuluh','sebelas','seratus','seribu']
+                            .map(word => `<div class="col-12"><button class="btn btn-outline-dark w-100 word-btn">${word}</button></div>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col text-center">
+                    <button id="submit-btn" class="btn btn-success btn-lg px-5">Submit</button>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col text-center">
+                    <div id="feedback" class="fw-bold fs-5"></div>
+                </div>
+            </div>
+        `;
+    }
+
+    // === Render angka target ===
+    function renderSlots(digits) {
+        const { targetNumberElement } = queryDOM();
+        targetNumberElement.innerHTML = '';
+        digits.forEach((d, i) => {
             const span = document.createElement("span");
             span.classList.add("digit");
-            span.dataset.index = i;
-            span.textContent = digits[i];
+            span.textContent = d;
             targetNumberElement.appendChild(span);
 
             if ((i + 1) % 3 === 0 && i !== digits.length - 1) {
@@ -182,59 +132,12 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 sep.textContent = ".";
                 targetNumberElement.appendChild(sep);
             }
-        }
-    }
-
-    function renderLives() {
-        const hearts = livesContainer.querySelectorAll('.heart');
-        hearts.forEach((heart, index) => {
-            if (index < lives) {
-                heart.classList.remove('empty');
-            } else {
-                heart.classList.add('empty');
-            }
         });
     }
 
-
-    function nextQuestion() {
-        kataArray = [];
-        hasilKata.textContent = "Klik tombol untuk mulai...";
-        hasilKata.classList.add('text-secondary');
-        feedback.textContent = '';
-
-        const difficulty = difficultySelect.value;
-        targetNumber = generateRandomNumberByDifficulty(difficulty);
-        const digits = targetNumber.split('');
-
-        renderSlots(digits);
-    }
-
-    function checkAnswer() {
-        const jawabanUser = kataArray.join(' ').trim();
-        const jawabanBenar = terbilang(targetNumber);
-
-        if (jawabanUser === jawabanBenar) {
-            feedback.textContent = "✅ Benar!";
-            feedback.className = "fw-bold fs-5 text-success";
-            score += 10;
-            scoreElement.textContent = score;
-            nextQuestion();
-        } else {
-            lives--;
-            renderLives();
-
-            if (lives <= 0) {
-                endGame(`💔 Nyawa habis! Jawaban benar: ${jawabanBenar}`);
-            } else {
-                feedback.textContent = `❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`;
-                feedback.className = "fw-bold fs-5 text-danger";
-            }
-        }
-    }
-
-
-    function addWord(word) {
+    // === Handler ===
+    function handleWordClick(word) {
+        const { hasilKata } = queryDOM();
         if (hasilKata.classList.contains('text-secondary')) {
             hasilKata.classList.remove('text-secondary');
             kataArray = [];
@@ -243,25 +146,126 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         hasilKata.textContent = kataArray.join(' ');
     }
 
-    function removeLastWord() {
+    function handleHapus() {
+        const { hasilKata } = queryDOM();
         if (kataArray.length > 0) {
             kataArray.pop();
-            hasilKata.textContent = kataArray.length === 0 ? 'Klik tombol untuk mulai...' : kataArray.join(' ');
-            if (kataArray.length === 0) hasilKata.classList.add('text-secondary');
+            hasilKata.textContent = kataArray.length ? kataArray.join(' ') : 'Klik tombol untuk merakit kata...';
+            if (!kataArray.length) hasilKata.classList.add('text-secondary');
         }
     }
 
-    function resetWords() {
+    function handleReset() {
         kataArray = [];
-        hasilKata.textContent = 'Klik tombol untuk mulai...';
+        const { hasilKata } = queryDOM();
+        hasilKata.textContent = 'Klik tombol untuk merakit kata...';
         hasilKata.classList.add('text-secondary');
-        feedback.textContent = '';
+        showFeedback('', '');
+    }
+
+    function handleSubmit() {
+        const state = core.getState();
+        if (!state || state.timer <= 0) return;
+
+        const jawabanUser = kataArray.join(' ').trim();
+        const jawabanBenar = terbilang(targetNumber);
+
+        if (jawabanUser === jawabanBenar) {
+            core.rules.onCorrect?.();
+            showFeedback("🎉 Selamat! Jawaban benar!", "text-success");
+        } else {
+            core.rules.onWrong?.();
+            const updatedState = core.getState(); // ambil nyawa terbaru
+            if (updatedState.lives > 0) {
+                showFeedback(`❌ Salah! (Sisa nyawa: ${updatedState.lives})`, "text-danger");
+            }
+        }
+    }
+
+    // === Soal baru ===
+    function generateAndRenderTarget() {
+        kataArray = [];
+        const { hasilKata, difficultySelect } = queryDOM();
+        hasilKata.textContent = 'Klik tombol untuk merakit kata...';
+        hasilKata.classList.add('text-secondary');
+
+        const difficulty = difficultySelect?.value || 'sedang';
+        targetNumber = generateRandomNumberByDifficulty(difficulty);
+        renderSlots(targetNumber.split(''));
+    }
+
+    // === Helper untuk toggle ===
+    function toggleButtons(enabled) {
+        const { hapusBtn, resetBtn, submitBtn, wordButtons } = queryDOM();
+        [hapusBtn, resetBtn, submitBtn, ...wordButtons].forEach(btn => {
+            btn.disabled = !enabled;
+        });
     }
 
 
+    // === Listener helper ===
+    function addListener(el, evt, handler) {
+        if (!el) return;
+        el.addEventListener(evt, handler);
+        listeners.push([el, evt, handler]);
+    }
+    function removeAllListeners() {
+        listeners.forEach(([el, evt, handler]) => el.removeEventListener(evt, handler));
+        listeners = [];
+    }
+
+    // === API untuk core ===
+    core.registerModeAPI({
+        beforeStart() {
+            renderUI();
+            const { wordButtons, hapusBtn, resetBtn, submitBtn, startBtn } = queryDOM();
+
+            (wordButtons || []).forEach(btn => addListener(btn, 'click', () => handleWordClick(btn.textContent)));
+            addListener(hapusBtn, 'click', handleHapus);
+            addListener(resetBtn, 'click', handleReset);
+            addListener(submitBtn, 'click', handleSubmit);
+            
+            const startHandler = () => {
+                const state = core.getState();
+                state.running ? core.endGame('Game diakhiri!') : core.startGame();
+            };
+            addListener(startBtn, 'click', startHandler);
+        },
+        afterStart() {
+            const { hasilKata, startBtn, difficultySelect } = queryDOM();
+            startBtn.textContent = "Akhiri";
+            difficultySelect.disabled = true;
+            hasilKata.classList.remove('text-success', 'fw-bold');
+            hasilKata.classList.add('text-secondary');
+            hasilKata.textContent = 'Klik tombol untuk merakit kata...';
+            toggleButtons(true);
+
+            showFeedback('', '');
+            generateAndRenderTarget();
+            onGameStateChange?.(true);
+        },
+        beforeEnd() {
+            const { hasilKata } = queryDOM();
+            hasilKata.classList.remove('text-secondary');
+            hasilKata.classList.add('text-success', 'fw-bold');
+            hasilKata.textContent = terbilang(targetNumber);
+            toggleButtons(false);
+        },
+        afterEnd(message) {
+            const { startBtn, difficultySelect} = queryDOM();
+            showFeedback(message, "text-info");
+
+            startBtn.textContent = "Mulai Lagi";
+            startBtn.disabled = false;
+            difficultySelect.disabled = false;
+
+            onGameStateChange?.(false);
+        }
+
+    });
+
     function destroy() {
-        clearInterval(timerInterval);
-        // Semua listener sudah terikat pada container, jadi aman kalau container dihapus
+        removeAllListeners();
     }
 
     return { destroy };

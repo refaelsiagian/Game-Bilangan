@@ -1,18 +1,15 @@
 import { terbilang, generateRandomNumberByDifficulty, findFixedIndices } from '../utils.js';
 
-export function init({ container, scoreElement, timerElement, onGameStateChange }) {
+export async function init(core, { container, onGameStateChange } = {}) {
     let targetNumber = "";
     let targetDigits = [];
     let filledSlots = [];
     let highlightedIndex = null;
-    let score = 0;
-    let timer = 60;
-    let lives = 3;
-    let timerInterval = null;
-    let gameActive = false;
+    let listeners = [];
 
-    // === RENDER UI ===
-    container.innerHTML = `
+    // === RENDER UI  ===
+    function renderUI() {
+        container.innerHTML = `
         <div class="text-center mb-3">
             <div class="digital-slots" id="target-number">
                 ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
@@ -49,89 +46,54 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         <div class="text-center">
             <div id="feedback" class="fw-bold fs-5"></div>
         </div>
-    `;
-
-    // === ELEMENT REFERENCES ===
-    const targetNumberElement = container.querySelector("#target-number");
-    const hasilKataElement = container.querySelector("#hasil-kata");
-    const startBtn = container.querySelector("#start-btn");
-    const difficultySelect = container.querySelector("#difficulty");
-    const feedback = container.querySelector("#feedback");
-    const numberButtonsContainer = container.querySelector(".number-buttons");
-    const livesContainer = document.getElementById('lives');
-
-    // === INIT NUMBER BUTTONS (0-9) ===
-    numberButtonsContainer.innerHTML = "";
-    for (let i = 0; i <= 9; i++) {
-        const btn = document.createElement("button");
-        btn.className = "btn btn-outline-primary m-1";
-        btn.textContent = i;
-        btn.addEventListener("click", () => handleNumberClick(i));
-        numberButtonsContainer.appendChild(btn);
+        `;
     }
 
-    // === EVENT LISTENERS ===
-    startBtn.addEventListener('click', () => {
-        gameActive ? endGame('Game diakhiri!') : startGame();
-    });
-
-    function startGame() {
-        score = 0;
-        timer = 60;
-        lives = 3;
-        filledSlots = [];
-        highlightedIndex = null;
-        gameActive = true;
-        startBtn.textContent = "Akhiri";
-        feedback.textContent = "";
-        scoreElement.textContent = score;
-
-        renderLives();
-
-        if (onGameStateChange) onGameStateChange(true);
-
-        difficultySelect.disabled = true;
-
-        const difficulty = difficultySelect.value;
-
-        targetNumber = generateRandomNumberByDifficulty(difficulty);
-        targetDigits = targetNumber.split('');
-        renderSlots(targetDigits, difficulty);
-
-        hasilKataElement.textContent = terbilang(targetNumber);
-        hasilKataElement.classList.remove('text-secondary');
-
-        highlightRandomSlot();
-
-        timerElement.textContent = timer;
-        timerInterval = setInterval(() => {
-            timer--;
-            timerElement.textContent = timer;
-            if (timer <= 0) endGame('⏰ Waktu habis!');
-        }, 1000);
+    // === Query DOM helper ===
+    function queryDOM() {
+        return {
+            targetNumberElement: container.querySelector("#target-number"),
+            hasilKataElement: container.querySelector("#hasil-kata"),
+            startBtn: container.querySelector("#start-btn"),
+            difficultySelect: container.querySelector("#difficulty"),
+            feedback: container.querySelector("#feedback"),
+            numberButtonsContainer: container.querySelector(".number-buttons"),
+        };
     }
 
-    function endGame(message) {
-        clearInterval(timerInterval);
-        gameActive = false;
-        startBtn.textContent = 'Mulai Lagi';
-        showFeedback(message, 'text-info');
-
-        targetNumberElement.querySelectorAll('.digit').forEach((slot, index) => {
-            if (!filledSlots.includes(index)) {
-                slot.textContent = targetDigits[index];
-                slot.classList.add('missed');
-            }
-        });
-
-        difficultySelect.disabled = false;
-        if (onGameStateChange) onGameStateChange(false);
+    // === Feedback helper ===
+    function showFeedback(message, className) {
+        const { feedback } = queryDOM();
+        if (!feedback) return;
+        feedback.textContent = message;
+        feedback.className = `fw-bold fs-5 ${className}`;
     }
 
+    // === Number buttons ===
+    function buildNumberButtons() {
+        const { numberButtonsContainer } = queryDOM();
+        numberButtonsContainer.innerHTML = "";
+        for (let i = 0; i <= 9; i++) {
+            const btn = document.createElement("button");
+            btn.className = "btn btn-outline-primary m-1";
+            btn.textContent = i;
+            addListener(btn, 'click', () => handleNumberClick(i));
+            numberButtonsContainer.appendChild(btn);
+        }
+    }
+
+    function toggleNumberButtons(enabled) {
+        const { numberButtonsContainer } = queryDOM();
+        Array.from(numberButtonsContainer.querySelectorAll('button')).forEach(b => b.disabled = !enabled);
+    }
+
+    // === Render slots ===
     function renderSlots(digits, difficulty) {
+        const { targetNumberElement } = queryDOM();
         targetNumberElement.innerHTML = "";
+        filledSlots = [];
 
-        const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
+        const fixedIndices = (difficulty === "mudah") ? findFixedIndices(digits) : [];
 
         for (let i = 0; i < digits.length; i++) {
             const span = document.createElement("span");
@@ -157,58 +119,9 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
-    function renderLives() {
-        const hearts = livesContainer.querySelectorAll('.heart');
-        hearts.forEach((heart, index) => {
-            if (index < lives) {
-                heart.classList.remove('empty');
-            } else {
-                heart.classList.add('empty');
-            }
-        });
-    }
-
-    function handleNumberClick(num) {
-        if (!gameActive || highlightedIndex === null) return;
-
-        const currentSlotIndex = highlightedIndex;
-        const correctDigit = targetDigits[currentSlotIndex];
-        const difficulty = difficultySelect.value;
-
-        if (correctDigit === String(num)) {
-            const slot = targetNumberElement.querySelector(`.digit[data-index="${currentSlotIndex}"]`);
-            slot.textContent = num;
-            slot.classList.add("filled");
-            filledSlots.push(currentSlotIndex);
-            showFeedback("✅ Benar!", "text-success");
-
-            score++;
-            scoreElement.textContent = score;
-
-            if (filledSlots.length === targetDigits.length) {
-                score += 10;
-                scoreElement.textContent = score;
-                endGame("🎉 Semua terisi! Skor +10");
-                return;
-            }
-        } else {
-            lives--;
-            renderLives();
-
-            if (lives <= 0) {
-                endGame(`💔 Nyawa habis!`);
-            } else {
-                feedback.textContent = `❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`;
-                feedback.className = "fw-bold fs-5 text-danger";
-            }
-        }
-
-        if (difficulty === "sulit" || correctDigit === String(num)) {
-            highlightRandomSlot();
-        }
-    }
-
+    // === Highlight slot ===
     function highlightRandomSlot() {
+        const { targetNumberElement } = queryDOM();
         targetNumberElement.querySelectorAll(".digit").forEach(slot => slot.classList.remove("highlight"));
         const remaining = [];
         for (let i = 0; i < targetDigits.length; i++) {
@@ -221,16 +134,131 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
 
         highlightedIndex = remaining[Math.floor(Math.random() * remaining.length)];
-        targetNumberElement.querySelector(`.digit[data-index="${highlightedIndex}"]`).classList.add("highlight");
+        const el = targetNumberElement.querySelector(`.digit[data-index="${highlightedIndex}"]`);
+        if (el) el.classList.add("highlight");
     }
 
-    function showFeedback(message, className) {
-        feedback.textContent = message;
-        feedback.className = `fw-bold fs-5 ${className}`;
+    // === Generate target ===
+    function generateAndRenderTarget() {
+        const { hasilKataElement, difficultySelect } = queryDOM();
+        hasilKataElement.classList.add('text-secondary');
+        hasilKataElement.textContent = 'Klik "Mulai" untuk menampilkan angka terbilang...';
+
+        const difficulty = difficultySelect?.value || 'sedang';
+        targetNumber = generateRandomNumberByDifficulty(difficulty);
+        targetDigits = targetNumber.split('');
+        renderSlots(targetDigits, difficulty);
+
+        hasilKataElement.textContent = terbilang(targetNumber);
+        hasilKataElement.classList.remove('text-secondary');
+
+        highlightRandomSlot();
     }
+
+    // === Logic klik angka ===
+    function handleNumberClick(num) {
+        const state = core.getState();
+        if (!state.running || highlightedIndex === null) return;
+
+        const currentSlotIndex = highlightedIndex;
+        const correctDigit = targetDigits[currentSlotIndex];
+        const { difficultySelect } = queryDOM();
+        const difficulty = difficultySelect?.value || 'sedang';
+
+        if (correctDigit === String(num)) {
+            const slot = queryDOM().targetNumberElement.querySelector(`.digit[data-index="${currentSlotIndex}"]`);
+            if (slot) {
+                slot.textContent = num;
+                slot.classList.add("filled");
+            }
+            if (!filledSlots.includes(currentSlotIndex)) filledSlots.push(currentSlotIndex);
+
+            showFeedback("✅ Benar!", "text-success");
+
+            // cek selesai
+            if (filledSlots.length === targetDigits.length) {
+                core.rules.onCorrect?.();
+                showFeedback('🎉 Selamat! Jawaban benar!', 'text-success');
+                return;
+            }
+
+            // di mode sulit atau setelah benar, ganti slot
+            if (difficulty === "sulit" || correctDigit === String(num)) {
+                highlightRandomSlot();
+            }
+        } else {
+            core.rules.onWrong?.();
+
+            const updated = core.getState();
+            if (updated.lives > 0) {
+                showFeedback(`❌ Salah! Coba lagi. (Sisa nyawa: ${updated.lives})`, "text-danger");
+            }
+        }
+    }
+
+    // === Listener helpers ===
+    function addListener(el, evt, handler) {
+        if (!el) return;
+        el.addEventListener(evt, handler);
+        listeners.push([el, evt, handler]);
+    }
+    function removeAllListeners() {
+        listeners.forEach(([el, evt, handler]) => el.removeEventListener(evt, handler));
+        listeners = [];
+    }
+
+    // === Core mode API registration ===
+    core.registerModeAPI({
+        beforeStart() {
+            renderUI();
+            buildNumberButtons();
+            toggleNumberButtons(false);
+            showFeedback('', '');
+
+            const { startBtn } = queryDOM();
+            addListener(startBtn, 'click', () => {
+                const running = core.getState().running;
+                running ? core.endGame("Game dihentikan") : core.startGame();
+            });
+        },
+
+        afterStart() {
+            const { startBtn, difficultySelect } = queryDOM();
+            startBtn.textContent = "Akhiri";
+            difficultySelect.disabled = true;
+            toggleNumberButtons(true);
+            showFeedback('', '');
+
+            generateAndRenderTarget();
+            onGameStateChange?.(true);
+        },
+
+        beforeEnd() {
+            // Fill missed slots with target digits
+            const { targetNumberElement } = queryDOM();
+            targetNumberElement.querySelectorAll('.digit').forEach((slot, index) => {
+                if (!filledSlots.includes(index)) {
+                    slot.textContent = targetDigits[index];
+                    slot.classList.add('missed');
+                }
+            });
+            toggleNumberButtons(false);
+        },
+
+        afterEnd(message) {
+            const { startBtn, difficultySelect } = queryDOM();
+            showFeedback(message, "text-info");
+
+            startBtn.textContent = "Mulai Lagi";
+            startBtn.disabled = false;
+            difficultySelect.disabled = false;
+
+            onGameStateChange?.(false);
+        }
+    });
 
     function destroy() {
-        clearInterval(timerInterval);
+        removeAllListeners();
     }
 
     return { destroy };

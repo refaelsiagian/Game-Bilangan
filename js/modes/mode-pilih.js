@@ -1,20 +1,30 @@
 import { terbilang, generateRandomNumberByDifficulty, shuffleArray, findFixedIndices } from '../utils.js';
 
-export function init({ container, scoreElement, timerElement, onGameStateChange }) {
-    // === STATE ===
+export async function init(core, { container, onGameStateChange } = {}) {
+    // === LOCAL MODE STATE ===
     let targetNumber = '';
     let targetDigits = [];
     let filledSlots = [];
     let pendingDigits = [];
     let currentDigit = '';
-    let score = 0;
-    let timer = 60;
-    let lives = 3;
-    let timerInterval = null;
-    let gameActive = false;
+    let listeners = [];
 
-    // === RENDER UI ===
-    container.innerHTML = `
+    // === DOM query helper ===
+    function queryDOM() {
+        return {
+            targetNumberElement: container.querySelector('#target-number'),
+            hasilKataElement: container.querySelector('#hasil-kata'),
+            currentDigitElement: container.querySelector('#current-digit'),
+            startBtn: container.querySelector('#start-btn'),
+            discardBtn: container.querySelector('#discard-btn'),
+            feedback: container.querySelector('#feedback'),
+            difficultySelect: container.querySelector('#difficulty')
+        };
+    }
+
+    // === UI render ===
+    function renderUI() {
+        container.innerHTML = `
         <div class="text-center mb-3">
             <div class="digital-slots" id="target-number">
                 ${'<span class="digit">_</span>'.repeat(3)}<span class="sep">.</span>
@@ -52,104 +62,25 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         <div class="text-center">
             <div id="feedback" class="fw-bold fs-5"></div>
         </div>
-    `;
-
-    // === ELEMENT REFERENCES ===
-    const targetNumberElement = container.querySelector('#target-number');
-    const hasilKataElement = container.querySelector('#hasil-kata');
-    const currentDigitElement = container.querySelector('#current-digit');
-    const startBtn = container.querySelector('#start-btn');
-    const discardBtn = container.querySelector('#discard-btn');
-    const feedback = container.querySelector('#feedback');
-    const difficultySelect = container.querySelector('#difficulty');
-    const livesContainer = document.getElementById('lives');
-
-    // === EVENT LISTENERS ===
-    difficultySelect.addEventListener('change', () => {
-        discardBtn.style.display = (difficultySelect.value === 'sulit') ? 'inline-block' : 'none';
-    });
-
-    startBtn.addEventListener('click', () => {
-        gameActive ? endGame('Game diakhiri!') : startGame();
-    });
-
-    discardBtn.addEventListener('click', handleDiscard);
-
-    // === FUNCTIONS ===
-    function startGame() {
-        score = 0;
-        timer = 60;
-        lives = 3;
-        filledSlots = [];
-        pendingDigits = [];
-        gameActive = true;
-        startBtn.textContent = 'Akhiri';
-        feedback.textContent = '';
-        scoreElement.textContent = score;
-        renderLives();
-
-        // Disable mode buttons
-        if(onGameStateChange){
-            onGameStateChange(true);
-        }
-
-        difficultySelect.disabled = true;
-
-        const difficulty = difficultySelect.value;
-
-        // Generate target number
-        targetNumber = generateRandomNumberByDifficulty(difficulty);
-        targetDigits = targetNumber.split('');
-        renderSlots(targetDigits, difficulty);
-
-        // Update keterangan
-        hasilKataElement.textContent = terbilang(targetNumber);
-        hasilKataElement.classList.remove('text-secondary');
-
-        // Prepare pending digits
-        pendingDigits = targetDigits.filter((d, i) => !(difficulty === 'mudah' && d === '0'));
-        if (difficulty === 'sulit') addDistractorDigits();
-        shuffleArray(pendingDigits);
-
-        console.log('pendingDigits:', pendingDigits);
-
-        showNextDigit();
-
-        // Timer
-        timerElement.textContent = timer;
-        timerInterval = setInterval(() => {
-            timer--;
-            timerElement.textContent = timer;
-            if (timer <= 0) endGame('⏰ Waktu habis!');
-        }, 1000);
+        `;
     }
 
-    function endGame(message) {
-        clearInterval(timerInterval);
-        gameActive = false;
-        startBtn.textContent = 'Mulai Lagi';
-        showFeedback(message, 'text-info');
-
-        // Isi slot yang belum terisi
-        targetNumberElement.querySelectorAll('.digit').forEach((slot, index) => {
-            if (!filledSlots.includes(index)) {
-                slot.textContent = targetDigits[index];
-                slot.classList.add('missed');
-            }
-        });
-
-        difficultySelect.disabled = false;
-        
-        // Enable mode 
-        if(onGameStateChange){
-            onGameStateChange(false);
-        }
+    // === Feedback helper ===
+    function showFeedback(message, className) {
+        const { feedback } = queryDOM();
+        if (!feedback) return;
+        feedback.textContent = message;
+        feedback.className = `fw-bold fs-5 ${className || ''}`;
     }
 
+    // === Slots rendering ===
     function renderSlots(digits, difficulty) {
+        const { targetNumberElement } = queryDOM();
         targetNumberElement.innerHTML = "";
 
         const fixedIndices = difficulty === "mudah" ? findFixedIndices(digits) : [];
+
+        filledSlots = [];
 
         for (let i = 0; i < digits.length; i++) {
             const span = document.createElement("span");
@@ -162,7 +93,8 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
                 filledSlots.push(i);
             } else {
                 span.textContent = "_";
-                span.addEventListener('click', () => handleSlotClick(i));
+                const handler = () => handleSlotClick(i);
+                addListener(span, 'click', handler);
             }
 
             targetNumberElement.appendChild(span);
@@ -176,62 +108,50 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
-    function renderLives() {
-        const hearts = livesContainer.querySelectorAll('.heart');
-        hearts.forEach((heart, index) => {
-            if (index < lives) {
-                heart.classList.remove('empty');
-            } else {
-                heart.classList.add('empty');
-            }
-        });
+    // === Core-driven helpers (use core.getState() for state) ===
+    function isRunning() {
+        return core.getState().running;
     }
 
-
+    // === Game mechanics ===
     function handleSlotClick(index) {
-        if (!gameActive || filledSlots.includes(index)) return;
+        if (!isRunning() || filledSlots.includes(index)) return;
 
         if (targetDigits[index] === currentDigit) {
-            const slot = targetNumberElement.querySelector(`.digit[data-index="${index}"]`);
-            slot.textContent = currentDigit;
-            slot.classList.add('filled');
+            const slot = queryDOM().targetNumberElement.querySelector(`.digit[data-index="${index}"]`);
+            if (slot) {
+                slot.textContent = currentDigit;
+                slot.classList.add('filled');
+            }
             filledSlots.push(index);
             showFeedback('✅ Benar!', 'text-success');
 
             if (filledSlots.length === targetDigits.length) {
-                score += 10;
-                scoreElement.textContent = score;
-                endGame('🎉 Semua terisi! Skor +10');
+                core.rules.onCorrect?.();
+                showFeedback('🎉 Selamat! Jawaban benar!', 'text-success');
             } else {
                 showNextDigit();
             }
-        } else {            
-            lives--;
-            renderLives();
-
-            if (lives <= 0) {
-                endGame(`💔 Nyawa habis!`);
-            } else {
-                showFeedback(`❌ Salah! Coba lagi. (Sisa nyawa: ${lives})`, 'text-danger');
-
+        } else {
+            core.rules.onWrong?.();
+            const updated = core.getState();
+            if (updated.lives > 0) {
+                showFeedback(`❌ Salah! (Sisa nyawa: ${updated.lives})`, 'text-danger');
             }
         }
     }
 
     function handleDiscard() {
-        if (!gameActive || !currentDigit) return;
+        if (!isRunning() || !currentDigit) return;
 
         if (!targetDigits.includes(currentDigit)) {
             showFeedback('✅ Benar! Angka dibuang.', 'text-success');
             showNextDigit();
-        } else {            
-            lives--;
-            renderLives();
-
-            if (lives <= 0) {
-                endGame(`💔 Nyawa habis!`);
-            } else {
-                showFeedback(`❌ Salah! Angka ada dalam target. (Sisa nyawa: ${lives})`, 'text-danger');
+        } else {
+            core.rules.onWrong?.();
+            const updated = core.getState();
+            if (updated.lives > 0) {
+                showFeedback(`❌ Salah! Angka ada dalam target. (Sisa nyawa: ${updated.lives})`, 'text-danger');
             }
         }
     }
@@ -239,17 +159,11 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
     function showNextDigit() {
         if (pendingDigits.length > 0) {
             currentDigit = pendingDigits.pop();
+            const { currentDigitElement } = queryDOM();
             currentDigitElement.textContent = currentDigit;
         } else {
-            score += 10;
-            scoreElement.textContent = score;
-            endGame('🎉 Semua selesai!');
+            core.rules.onCorrect?.();
         }
-    }
-
-    function showFeedback(message, className) {
-        feedback.textContent = message;
-        feedback.className = `fw-bold fs-5 ${className}`;
     }
 
     function addDistractorDigits() {
@@ -261,8 +175,108 @@ export function init({ container, scoreElement, timerElement, onGameStateChange 
         }
     }
 
+    // === Listener management ===
+    function addListener(el, evt, handler) {
+        if (!el) return;
+        el.addEventListener(evt, handler);
+        listeners.push([el, evt, handler]);
+    }
+    function removeAllListeners() {
+        listeners.forEach(([el, evt, handler]) => {
+            try { el.removeEventListener(evt, handler); } catch (e) {}
+        });
+        listeners = [];
+    }
+
+    // === Generate target & prepare digits (used when game actually starts) ===
+    function generateAndPrepareTarget() {
+        filledSlots = [];
+        pendingDigits = [];
+        currentDigit = '';
+
+        const { hasilKataElement, difficultySelect, currentDigitElement } = queryDOM();
+        hasilKataElement.textContent = terbilang(targetNumber);
+        hasilKataElement.classList.remove('text-secondary');
+
+        const difficulty = difficultySelect?.value || 'sedang';
+
+        targetDigits = targetNumber.split('');
+
+        pendingDigits = targetDigits.filter((d, i) => !(difficulty === 'mudah' && d === '0'));
+        if (difficulty === 'sulit') addDistractorDigits();
+        shuffleArray(pendingDigits);
+
+        currentDigitElement.textContent = '_';
+        showNextDigit();
+    }
+
+    // === Mode API registered to core ===
+    core.registerModeAPI({
+        beforeStart() {
+            renderUI();
+
+            const { difficultySelect, startBtn, discardBtn } = queryDOM();
+
+            const diffHandler = () => {
+                discardBtn.style.display = (difficultySelect.value === 'sulit') ? 'inline-block' : 'none';
+            };
+            addListener(difficultySelect, 'change', diffHandler);
+            diffHandler(); // set initial visibility
+
+            const startHandler = () => {
+                const state = core.getState();
+                state.running ? core.endGame('Game diakhiri!') : core.startGame();
+            };
+            addListener(startBtn, 'click', startHandler);
+
+            addListener(discardBtn, 'click', handleDiscard);
+        },
+
+        afterStart() {
+            const { startBtn, difficultySelect } = queryDOM();
+
+            startBtn.textContent = "Akhiri";
+            difficultySelect.disabled = true;
+
+            const difficulty = difficultySelect?.value || 'sedang';
+            targetNumber = generateRandomNumberByDifficulty(difficulty);
+            renderSlots(targetNumber.split(''), difficulty);
+
+            generateAndPrepareTarget();
+            showFeedback('', '');
+            onGameStateChange?.(true);
+        },
+
+        beforeEnd() {
+            const { targetNumberElement } = queryDOM();
+
+            targetNumberElement.querySelectorAll('.digit').forEach((slot, idx) => {
+                if (!filledSlots.includes(idx)) {
+                    slot.textContent = targetDigits[idx];
+                    slot.classList.add('missed');
+                }
+            });
+        },
+
+        afterEnd(message) {
+            const { startBtn, difficultySelect, hasilKataElement } = queryDOM();
+            showFeedback(message, 'text-info');
+
+            if (targetNumber) {
+                hasilKataElement.classList.remove('text-secondary');
+                hasilKataElement.textContent = terbilang(targetNumber);
+            }
+
+            startBtn.textContent = "Mulai Lagi";
+            startBtn.disabled = false;
+            difficultySelect.disabled = false;
+
+            onGameStateChange?.(false);
+        }
+    });
+
     function destroy() {
-        clearInterval(timerInterval);
+        removeAllListeners();
     }
 
     return { destroy };
