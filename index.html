@@ -25,21 +25,19 @@
         </div>
     </div>
 
-    <!-- Pilihan Mode -->
-    <div class="text-center mb-4">
-        <h5>Pilih Mode:</h5>
-        <div class="btn-group flex-wrap" id="mode-selector">
-            <button class="btn btn-outline-primary mode-btn" data-mode="tulis">Tulis</button>
-            <button class="btn btn-outline-primary mode-btn" data-mode="pilih">Pilih</button>
-            <button class="btn btn-outline-primary mode-btn" data-mode="isi">Isi</button>
-            <button class="btn btn-outline-primary mode-btn" data-mode="cari">Cari</button>
-            <button class="btn btn-outline-primary mode-btn" data-mode="cocok">Cocok</button>
-            <button class="btn btn-outline-primary mode-btn" data-mode="kedip">Kedip</button>
+    <div class="text-center mb-2">
+        <h5>Pilih Kategori:</h5>
+        <div class="btn-group flex-wrap" id="category-selector">
+            <button class="btn btn-outline-success category-btn" data-category="fasterBetter">Kerjakan Cepat</button>
+            <button class="btn btn-outline-success category-btn" data-category="moreBetter">Kerjakan Banyak</button>
         </div>
     </div>
 
+    <!-- Container tombol mode (diisi dinamis lewat JS) -->
+    <div class="text-center mb-4" id="mode-selector"></div>
+
     <div class="text-center text-secondary" id="game-instructions">
-        <p>Pilih mode di atas untuk memulai game.</p>
+        <h6>Pilih kategori terlebih dahulu.</h6>
     </div>
 
     <!-- Container Dinamis untuk UI Mode -->

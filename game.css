@@ -1,3 +1,10 @@
+/* Category button active */
+.category-btn.active {
+    color: #fff !important;
+    background-color: var(--bs-success) !important;
+    border-color: var(--bs-success) !important;
+}
+
 /* Mode button active */
 .mode-btn.active {
     color: #fff !important;

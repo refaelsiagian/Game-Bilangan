@@ -9,56 +9,38 @@ const modesConfig = {
     tulis: {
         file: './modes/mode-tulis.js',
         category: 'fasterBetter',
-        instructions: `
-            <p>
-                Tuliskan bentuk terbilang dari bilangan yang tertera di bawah ini.
-                Gunakan tombol di bawah untuk memilih kata yang sesuai.
-            </p>`
+        instructions: `Tuliskan bentuk terbilang dari bilangan yang tertera di bawah ini.
+                       Gunakan tombol di bawah untuk memilih kata yang sesuai.`
     },
     pilih: {
         file: './modes/mode-pilih.js',
         category: 'fasterBetter',
-        instructions: `
-            <p>
-                Angka akan tampil secara acak di bagian bawah.
-                Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.
-            </p>`
+        instructions: `Angka akan tampil secara acak di bagian bawah.
+                       Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.`
     },
     isi: {
         file: './modes/mode-isi.js',
         category: 'fasterBetter',
-        instructions: `
-            <p>
-                Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
-                Gunakan tombol di bawah untuk memilih angka.
-            </p>`
+        instructions: `Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
+                       Gunakan tombol di bawah untuk memilih angka.`
     },
     cari: {
         file: './modes/mode-cari.js',
         category: 'moreBetter',
-        instructions: `
-            <p>
-                Cari digit angka yang tidak sesuai dengan terbilang yang diberikan.
-                Klik pada angka untuk memilihnya.
-            </p>`
+        instructions: `Cari digit angka yang tidak sesuai dengan terbilang yang diberikan.
+                       Klik pada angka untuk memilihnya.`
     },
     cocok: {
         file: './modes/mode-cocok.js',
         category: 'moreBetter',
-        instructions: `
-            <p>
-                Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
-                Gunakan tombol di bawah untuk memilih jawaban.
-            </p>`
+        instructions: `Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
+                       Gunakan tombol di bawah untuk memilih jawaban.`
     },
     kedip: {
         file: './modes/mode-kedip.js',
         category: 'moreBetter',
-        instructions: `
-            <p>
-                Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
-                Gunakan tombol di bawah untuk memilih angka.
-            </p>`
+        instructions: `Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
+                       Gunakan tombol di bawah untuk memilih angka.`
     }
 
 };
@@ -71,12 +53,13 @@ const gameConfig = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    const gameContainer = document.getElementById('game-container');
-    const scoreEl       = document.getElementById('score');
-    const timerEl       = document.getElementById('timer');
-    const livesEl       = document.getElementById('lives');
-    const instructionsEl= document.getElementById('game-instructions');
-    const modeButtons   = document.querySelectorAll('.mode-btn');
+    const gameContainer   = document.getElementById('game-container');
+    const scoreEl         = document.getElementById('score');
+    const timerEl         = document.getElementById('timer');
+    const livesEl         = document.getElementById('lives');
+    const instructionsEl  = document.getElementById('game-instructions');
+    const categoryButtons = document.querySelectorAll('.category-btn');
+    const modeSelector    = document.getElementById('mode-selector');
 
     let currentCore = null;
     let currentModeModule = null;
@@ -92,55 +75,76 @@ document.addEventListener('DOMContentLoaded', () => {
         currentModeInstance = null;
     }
 
-    modeButtons.forEach(btn => {
-        btn.addEventListener('click', async () => {
-            const key = btn.dataset.mode;
-            if (!modesConfig[key]) {
-                console.warn('Mode tidak ditemukan:', key);
-                return;
-            }
+    // 🔹 Render tombol mode sesuai kategori
+    function renderModeButtons(categoryKey) {
+        modeSelector.innerHTML = ''; // reset
 
-            modeButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            unloadCurrentMode();
+        const modes = Object.entries(modesConfig)
+            .filter(([_, cfg]) => cfg.category === categoryKey);
 
-            const cfg = modesConfig[key];
-            instructionsEl.innerHTML = cfg.instructions || '';
+        modes.forEach(([modeKey, cfg]) => {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-outline-primary mode-btn m-1";
+            btn.dataset.mode = modeKey;
+            btn.textContent = modeKey.charAt(0).toUpperCase() + modeKey.slice(1);
+            modeSelector.appendChild(btn);
 
-            try {
-                const [catModule, modeModule] = await Promise.all([
-                    categoryMap[cfg.category]().then(m => m.default ?? m),
-                    import(cfg.file)
-                ]);
+            btn.addEventListener('click', async () => {
+                modeSelector.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                unloadCurrentMode();
 
-                // === Core dibuat dengan elemen global ===
-                currentCore = createCore(catModule, {
-                    ...gameConfig,
-                    scoreElement: scoreEl,
-                    timerElement: timerEl,
-                    livesElement: livesEl
-                }, gameContainer);
+                instructionsEl.innerHTML = `<h6>${cfg.instructions}</h6>` || '';
 
-                // === Mode hanya terima container + callback ===
-                const options = {
-                    container: gameContainer,
-                    onGameStateChange: (isRunning) => {
-                        document.querySelectorAll('.mode-btn').forEach(b => b.disabled = isRunning);
+                try {
+                    const [catModule, modeModule] = await Promise.all([
+                        categoryMap[cfg.category]().then(m => m.default ?? m),
+                        import(cfg.file)
+                    ]);
+
+                    currentCore = createCore(catModule, {
+                        ...gameConfig,
+                        scoreElement: scoreEl,
+                        timerElement: timerEl,
+                        livesElement: livesEl
+                    }, gameContainer);
+
+                    const options = {
+                        container: gameContainer,
+                        onGameStateChange: (isRunning) => {
+                            // 🔹 Kalau game jalan → disable kategori
+                            document.querySelectorAll('.category-btn').forEach(b => b.disabled = isRunning);
+                            // mode buttons juga ikut diatur
+                            document.querySelectorAll('.mode-btn').forEach(b => b.disabled = isRunning);
+                        }
+                    };
+
+                    currentModeModule = modeModule;
+                    currentModeInstance = await (modeModule.init?.(currentCore, options) ?? null);
+
+                    if (typeof currentCore.prepareGame === 'function') {
+                        currentCore.prepareGame();
                     }
-                };
 
-                currentModeModule = modeModule;
-                currentModeInstance = await (modeModule.init?.(currentCore, options) ?? null);
-
-                if (typeof currentCore.prepareGame === 'function') {
-                    currentCore.prepareGame();
+                } catch (err) {
+                    console.error('Gagal load mode/category:', err);
+                    gameContainer.innerHTML = `<div class="text-danger">Gagal memuat mode. Lihat console.</div>`;
                 }
+            });
+        });
+    }
 
-            } catch (err) {
-                console.error('Gagal load mode/category:', err);
-                gameContainer.innerHTML = `<div class="text-danger">Gagal memuat mode. Lihat console.</div>`;
-            }
+    // 🔹 Event klik kategori
+    categoryButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            categoryButtons.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active'); 
+
+            unloadCurrentMode(); // kosongkan game
+            instructionsEl.innerHTML = `<h6>Pilih mode untuk kategori <b>${btn.textContent}</b>.</h6>`;
+            renderModeButtons(btn.dataset.category);
         });
     });
-
 });
+
+
