@@ -155,6 +155,7 @@ export async function init(core, { container, onGameStateChange } = {}) {
 
         const { difficultySelect, optionButtons } = queryDOM();
         const difficulty = difficultySelect?.value || 'sedang';
+        core.rules.difficulty = difficulty;
         targetNumber = generateRandomNumberByDifficulty(difficulty);
         const digits = targetNumber.split("");
 

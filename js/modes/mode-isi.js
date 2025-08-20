@@ -146,6 +146,7 @@ export async function init(core, { container, onGameStateChange } = {}) {
 
         const difficulty = difficultySelect?.value || 'sedang';
         targetNumber = generateRandomNumberByDifficulty(difficulty);
+        core.rules.difficulty = difficulty;
         targetDigits = targetNumber.split('');
         renderSlots(targetDigits, difficulty);
 

@@ -190,6 +190,7 @@ export async function init(core, { container, onGameStateChange } = {}) {
         hasilKata.classList.add('text-secondary');
 
         const difficulty = difficultySelect?.value || 'sedang';
+        core.rules.difficulty = difficulty;
         targetNumber = generateRandomNumberByDifficulty(difficulty);
         renderSlots(targetNumber.split(''));
     }

@@ -199,6 +199,7 @@ export async function init(core, { container, onGameStateChange } = {}) {
         hasilKataElement.classList.remove('text-secondary');
 
         const difficulty = difficultySelect?.value || 'sedang';
+        core.rules.difficulty = difficulty;
 
         targetDigits = targetNumber.split('');
 

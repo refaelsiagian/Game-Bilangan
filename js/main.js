@@ -10,37 +10,112 @@ const modesConfig = {
         file: './modes/mode-tulis.js',
         category: 'fasterBetter',
         instructions: `Tuliskan bentuk terbilang dari bilangan yang tertera di bawah ini.
-                       Gunakan tombol di bawah untuk memilih kata yang sesuai.`
-    },
-    pilih: {
-        file: './modes/mode-pilih.js',
-        category: 'fasterBetter',
-        instructions: `Angka akan tampil secara acak di bagian bawah.
-                       Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.`
-    },
-    isi: {
-        file: './modes/mode-isi.js',
-        category: 'fasterBetter',
-        instructions: `Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
-                       Gunakan tombol di bawah untuk memilih angka.`
+                       Gunakan tombol di bawah untuk memilih kata yang sesuai.`,
+        scoring: {
+            mudah: {
+                score: 150,
+                multiplier: 10
+            },
+            sedang: {
+                score: 200,
+                multiplier: 10
+            },
+            sulit: {
+                score: 250,
+                multiplier: 10
+            }
+        }
     },
     cari: {
         file: './modes/mode-cari.js',
         category: 'moreBetter',
         instructions: `Cari digit angka yang tidak sesuai dengan terbilang yang diberikan.
-                       Klik pada angka untuk memilihnya.`
+                       Klik pada angka untuk memilihnya.`,
+        scoring: {
+            mudah: {
+                points: 20,
+            },
+            sedang: {
+                points: 30,
+            },
+            sulit: {
+                points: 40,
+            }
+        }
+    },
+    pilih: {
+        file: './modes/mode-pilih.js',
+        category: 'fasterBetter',
+        instructions: `Angka akan tampil secara acak di bagian bawah.
+                       Pilih tempat untuk angka tersebut sesuai dengan terbilang yang diberikan.`,
+        scoring: {
+            mudah: {
+                score: 100,
+                multiplier: 5
+            },
+            sedang: {
+                score: 150,
+                multiplier: 5
+            },
+            sulit: {
+                score: 200,
+                multiplier: 5
+            }
+        }
+    },
+    isi: {
+        file: './modes/mode-isi.js',
+        category: 'fasterBetter',
+        instructions: `Isi angka ke dalam bagian yang disorot sesuai dengan terbilang yang diberikan.
+                       Gunakan tombol di bawah untuk memilih angka.`,
+        scoring: {
+            mudah: {
+                score: 100,
+                multiplier: 5
+            },
+            sedang: {
+                score: 150,
+                multiplier: 5
+            },
+            sulit: {
+                score: 200,
+                multiplier: 5
+            }
+        }
     },
     cocok: {
         file: './modes/mode-cocok.js',
         category: 'moreBetter',
         instructions: `Pilih terbilang yang cocok dengan posisi digit angka yang tampil.
-                       Gunakan tombol di bawah untuk memilih jawaban.`
+                       Gunakan tombol di bawah untuk memilih jawaban.`,
+        scoring: {
+            mudah: {
+                points: 20,
+            },
+            sedang: {
+                points: 30,
+            },
+            sulit: {
+                points: 40,
+            }
+        }
     },
     kedip: {
         file: './modes/mode-kedip.js',
         category: 'moreBetter',
         instructions: `Perhatikan angka yang berkedip dan tuliskan terbilang yang sesuai.
-                       Gunakan tombol di bawah untuk memilih angka.`
+                       Gunakan tombol di bawah untuk memilih angka.`,
+        scoring: {
+            mudah: {
+                points: 20,
+            },
+            sedang: {
+                points: 30,
+            },
+            sulit: {
+                points: 40,
+            }
+        }
     }
 
 };
@@ -49,7 +124,6 @@ const modesConfig = {
 const gameConfig = {
     lives: 3,
     timer: 60,
-    baseScore: 10
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -102,7 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         import(cfg.file)
                     ]);
 
-                    currentCore = createCore(catModule, {
+                    currentCore = createCore((core) => {
+                        // catModule diharapkan menerima (core, scoring)
+                        return catModule(core, cfg.scoring ?? {});
+                        }, {
                         ...gameConfig,
                         scoreElement: scoreEl,
                         timerElement: timerEl,

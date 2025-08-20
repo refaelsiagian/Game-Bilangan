@@ -1,7 +1,10 @@
-export default function moreBetter(core) {
+export default function moreBetter(core, scoring = {}) {
     return {
         onCorrect() {
-            core.addScore(core.calculateScore());
+            const difficulty = core.rules.difficulty || 'sedang';
+            const cfg = (scoring && scoring[difficulty]) || {};
+            const points = Number(cfg.points ?? cfg.score ?? core.calculateScore() ?? 0);
+            core.addScore(points);
             core.nextQuestion();
         },
         onWrong(next) {

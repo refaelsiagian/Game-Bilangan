@@ -291,6 +291,7 @@ export async function init(core, { container, onGameStateChange } = {}) {
         showFeedback("", "");
 
         difficulty = queryDOM().difficultySelect.value;
+        core.rules.difficulty = difficulty;
         targetNumber = generateRandomNumberByDifficulty(difficulty);
         digits = targetNumber.split("");
         fixedDigitIndices = (difficulty === "mudah") ? findFixedIndices(digits) : [];
